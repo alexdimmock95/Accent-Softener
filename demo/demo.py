@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from src.denoiser import Denoiser
 from src.asr import PhonemeAligner
+from src.formant_shifter import FormantShifter
 # from src.pitch_shifter import PitchShifter  # Add when ready
 # from src.formant_shifter import FormantShifter  # Add when ready
 
@@ -31,7 +32,7 @@ def main():
     print("=" * 50)
     
     # Define input and output paths
-    input_file = Path("audio_files/input/youtube_noise.wav")
+    input_file = Path("audio_files/input/vowels.wav")
     output_folder = Path("audio_files/output")
     output_folder.mkdir(parents=True, exist_ok=True)
     output_file = output_folder / f"{input_file.stem}_processed.wav"
@@ -101,13 +102,47 @@ def main():
 
     result, vowel_phonemes = aligner.process(str(temp_asr_file))
 
+    ###########################################################################################################################################################################################################
+    ################ TODO: print location of result################################################################################################################################################################################################
+
     print("✓ ASR + phoneme alignment complete")
+
+    # ============================================================
+    # STEP 4: FORMANT SHIFTING 
+    # ============================================================
+    print("\n" + "="*50)
+    print("STEP 4: Formant Shifting")
+    print("="*50)
+
+    # --- Instantiate the formant shifter ---
+    shifter = FormantShifter(
+        sr=sr,
+        n_fft=1024,
+        hop_length=256,
+        win_length=1024,
+        max_freq=4000
+    )
+
+    # --- Apply formant shift to all detected vowel phonemes ---
+    for vowel_phoneme in vowel_phonemes:
+        shifted_segment = shifter.shift_formants_vowel(audio, vowel_phoneme)
+
+        start_s = int(vowel_phoneme['start'] * sr)
+        end_s = start_s + len(shifted_segment)
+
+        audio[start_s:end_s] = shifter.crossfade(
+            original=audio[start_s:end_s],
+            shifted=shifted_segment,
+            fade_len=int(0.02 * sr)  # 20 ms crossfade
+        )
+
+    print("  ✓ Formant shifting complete")
 
     # ============================================================
     # FINAL STEP: SAVE OUTPUT
     # ============================================================
     print("\n" + "="*50)
-    print("STEP 5: Save Output")
+    print("FINAL STEP: Save Output")
     print("="*50)
     
     sf.write(str(output_file), audio, samplerate=sr, format='WAV')
@@ -143,11 +178,6 @@ def main():
 if __name__ == "__main__":
     main()
 
-
-
-
-#### Find parts of spectrogram corresponding to vowels only (for formant shifting)
-#### Modify these parts of the spectrogram accordingly
 
 
 '''    # ============================================================
