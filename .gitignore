@@ -5,5 +5,8 @@ __pycache__/
 venv/
 logs/
 .DS_Store
-chatgpt_guide.md
 project_guide.md
+output/
+!audio_files/output/
+audio_files/temp/
+audio_files/output/

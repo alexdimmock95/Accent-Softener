@@ -221,6 +221,9 @@ class PhonemeAligner:
         
         print("\nStep 1: Transcribing audio with WhisperX...")
         segments, audio = self._transcribe(audio_file)
+
+        # Reconstruct full transcript
+        full_text = " ".join(seg['text'] for seg in segments)
         
         print("\nStep 2: Aligning words with WhisperX...")
         aligned_segments = self._align_words(segments, audio)
@@ -251,27 +254,31 @@ class PhonemeAligner:
             if p["phoneme"] in IPA_VOWELS
         ]
 
+        
+
         print(f"✓ Found {len(vowel_phonemes)} vowel phonemes")
         
         print("✓ Processing complete")
         
-        return PhonemeResult(phoneme_data, all_phonemes), vowel_phonemes
+        return PhonemeResult(phoneme_data, all_phonemes, full_text), vowel_phonemes
 
 class PhonemeResult:
     """
     Container for phoneme alignment results with export and display methods.
     """
     
-    def __init__(self, phoneme_data, all_phonemes):
+    def __init__(self, phoneme_data, all_phonemes, full_text=None):
         """
         Initialize PhonemeResult.
         
         Args:
             phoneme_data (list): Structured phoneme data by segment
             all_phonemes (list): Flat list of all phonemes with timestamps
+            full_text (str, optional): Full transcript text
         """
         self.phoneme_data = phoneme_data
         self.all_phonemes = all_phonemes
+        self.text = full_text
     
     def export_json(self, filepath):
         """

@@ -6,36 +6,35 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.formant_shifter import FormantShifter
+from voice_transformer import FormantShifter
 
 def main():
     # ---- Load test audio ----
-    audio_path = "/Users/Alex/Documents/Coding/personal_project/accent_softener/audio_files/output/vowels_processed.wav"
+    audio_path = "/Users/Alex/Documents/Coding/personal_project/accent_softener/audio_files/input/test.wav"
     audio, sr = librosa.load(audio_path, sr=None)
 
-    # ---- Instantiate shifter ----
+    # --- Instantiate the formant shifter ---
     shifter = FormantShifter(
         sr=sr,
         n_fft=1024,
         hop_length=256,
         win_length=1024,
-        max_freq=4000
+        max_freq=4000,
+        multiplier=3
     )
 
     # ---- Choose vowel segment (seconds) ----
     start_time = 0.5
     end_time = 7.5
 
-    # ---- Formant shift factor ----
-    alpha = 1.15
-
     # ---- Apply formant shift ----
-    shifted_segment = shifter.shift_formants_vowel(
-        audio,
-        start=start_time,
-        end=end_time,
-        alpha=alpha
-    )
+    phoneme = {
+        'phoneme': 'ɑ',   # IMPORTANT: IPA, not 'a'
+        'start': start_time,
+        'end': end_time
+    }
+
+    shifted_segment = shifter.shift_formants_vowel(audio, phoneme)
 
     # ---- Reinsert into original audio ----
     start_s = int(start_time * sr)
@@ -54,6 +53,12 @@ def main():
     # ---- Visual sanity check ----
     shifter.plot_spectrogram(audio, "Original")
     shifter.plot_spectrogram(output, "Formant Shifted")
+
+    ##############################################
+    ################ TODO: show time zones where vowels are present and where formant shifting has occurred, on spectrogram with dotted line and have the before and after spectrograms appear one on top of the other for easy comparison. 
+    #########################################################################################################################################################################################################
+
+    ### TODO: Update output folder where spectrograms are saved
 
 
 if __name__ == "__main__":
