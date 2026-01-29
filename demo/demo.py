@@ -37,6 +37,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 from src.denoiser import Denoiser
 from src.asr import PhonemeAligner
 from src.voice_transformer import FormantShifter, VoiceTransformer
+from src.speech_to_speech import SpeechToSpeechTranslator
 
 def main():
     print("Accent Softener")
@@ -164,60 +165,100 @@ def main():
 
     print("\n✓ Formant shifting complete")
 
-    ##### TODO: This is the limit of what formant shifting will do. Need to refer to chatgpt advice on LPC approach, and cross referencing this against praat for accuracy.
+    ##### This is the limit of what formant shifting will do. Need to refer to chatgpt advice on LPC approach, and cross referencing this against praat for accuracy.
     #### Think its called WORLD 
 
+    ## TODO: Add choice to go either pitch shift or coqui
+
     # ============================================================
-    # STEP 5: PITCH SHIFT
+    # STEP 5: PROCESSING MODE SELECTION
     # ============================================================
     print("\n" + "="*50)
-    print("STEP 5: Pitch Shift")
+    print("STEP 5: Select Processing Mode")
     print("="*50)
-
-    # Voice transformation menu
-    print("\n" + "="*50)
-    print("Options")
-    print("="*50)
-    print("\n1. Male → Female")
-    print("2. Female → Male")
-    print("3. Make Older")
-    print("4. Make Younger")
-    print("5. Custom Parameters")
     
-    choice = input("\nSelect transformation (1-5): ").strip()
+    print("\n1. Voice Transformation (Gender/Age modification)")
+    print("2. Speech-to-Speech Translation (Multilingual voice cloning)")
     
-    transformer = VoiceTransformer()
+    mode_choice = input("\nSelect mode (1-2): ").strip()
+    
+    if mode_choice == "1":
+        # ============================================================
+        # PITCH SHIFT
+        # ============================================================
+        print("\n" + "="*50)
+        print("STEP 5: Pitch Shift")
+        print("="*50)
 
-    if choice == "1":
-        print("\n[Processing] Male → Female transformation...")
-        output_audio = transformer.preset_male_to_female(audio, sr)
-    elif choice == "2":
-        print("\n[Processing] Female → Male transformation...")
-        output_audio = transformer.preset_female_to_male(audio, sr)
-    elif choice == "3":
-        print("\n[Processing] Older voice transformation...")
-        output_audio = transformer.preset_older(audio, sr)
-    elif choice == "4":
-        print("\n[Processing] Younger voice transformation...")
-        output_audio = transformer.preset_younger(audio, sr)
-    elif choice == "5":
-        print("\nCustom parameters:")
-        gender_shift = float(input("  Gender shift (semitones, -12 to +12): "))
-        formant_shift = float(input("  Formant shift (ratio, 0.7 to 1.3): "))
-        age_shift = float(input("  Age shift (ratio, 0.7 to 1.3): "))
+        # Voice transformation menu
+        print("\n" + "="*50)
+        print("Options")
+        print("="*50)
+        print("\n1. Male → Female")
+        print("2. Female → Male")
+        print("3. Make Older")
+        print("4. Make Younger")
+        print("5. Custom Parameters")
+        
+        choice = input("\nSelect transformation (1-5): ").strip()
+        
+        transformer = VoiceTransformer()
 
-        print("\n[Processing] Custom transformation...")
-        output_audio = transformer.transform_voice(
-            audio, sr,
-            gender_shift=gender_shift,
-            formant_shift=formant_shift,
-            age_shift=age_shift
+        if choice == "1":
+            print("\n[Processing] Male → Female transformation...")
+            output_audio = transformer.preset_male_to_female(audio, sr)
+        elif choice == "2":
+            print("\n[Processing] Female → Male transformation...")
+            output_audio = transformer.preset_female_to_male(audio, sr)
+        elif choice == "3":
+            print("\n[Processing] Older voice transformation...")
+            output_audio = transformer.preset_older(audio, sr)
+        elif choice == "4":
+            print("\n[Processing] Younger voice transformation...")
+            output_audio = transformer.preset_younger(audio, sr)
+        elif choice == "5":
+            print("\nCustom parameters:")
+            gender_shift = float(input("  Gender shift (semitones, -12 to +12): "))
+            formant_shift = float(input("  Formant shift (ratio, 0.7 to 1.3): "))
+            age_shift = float(input("  Age shift (ratio, 0.7 to 1.3): "))
+
+            print("\n[Processing] Custom transformation...")
+            output_audio = transformer.transform_voice(
+                audio, sr,
+                gender_shift=gender_shift,
+                formant_shift=formant_shift,
+                age_shift=age_shift
+            )
+        else:
+            print("\nInvalid choice. Using default (Male → Female)")
+            output_audio = transformer.preset_male_to_female(audio, sr)
+        
+        print("Complete")
+
+    elif mode_choice == "2":
+        # ============================================================
+        # STEP 6: TRANSLATION
+        # ============================================================
+        print("\n" + "="*50)
+        print("STEP 6: Translation")
+        print("="*50)
+
+        # Initialize translator
+        translator = SpeechToSpeechTranslator(
+            device="cpu",
+            model_size="base",
+            compute_type="int8",
+            batch_size=16
         )
-    else:
-        print("\nInvalid choice. Using default (Male → Female)")
-        output_audio = transformer.preset_male_to_female(audio, sr)
-    
-    print("Complete")
+        
+        # Translate to French
+        output_audio, sr = translator.translate_speech(
+            audio_path=str(temp_asr_file),
+            text=result.text,
+            target_language="fr"
+        )
+
+        print("Complete")
 
     # ============================================================
     # FINAL STEP: SAVE OUTPUT
@@ -260,7 +301,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 # ============================================================
 # TODO: Using coqui package, allow for options of changing accent!!!!!!!! speech-> transcription (whisper tas deja)-> translation(deep translate google translate)-> coqui model with different accent

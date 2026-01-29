@@ -10,9 +10,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- README.md with comprehensive project documentation
-- Complete file structure documentation and module descriptions
-- Paused progress on formant shifter module; formant shifting alone does not modify vowel pronunciation and is a more rigorous body of work I will return to after fleshing out the remaining modules.
+
+---
+
+## [0.3.0] — 2026-01-29
+
+### Added
+- **VoiceTransformer class** — WORLD vocoder-based voice transformation with pitch, formant, and time-stretch modifications
+  - Gender conversion presets (male→female, female→male)
+  - Age modification presets (older, younger)
+  - Customizable gender shift (semitones), age shift (time-stretch ratio), and formant shift (spectral envelope ratio)
+- **FormantShifter class** — Enhanced STFT-based formant shifting with vowel-specific modifications
+  - Spectral envelope warping for vowel-specific formant nudges
+  - Crossfade blending for smooth transitions
+  - Spectrogram visualization capabilities
+- **SpeechToSpeechTranslator class** — Complete speech-to-speech translation pipeline
+  - WhisperX integration for multilingual ASR with voice alignment
+  - Google Translate for text translation
+  - XTTS v2 for multilingual voice cloning synthesis
+  - End-to-end pipeline: speech → text → translation → voice-cloned speech
+- Unit tests for voice transformation (test_voice_transformer.py)
+- Unit tests for speech-to-speech translation (test_speech_to_speech.py)
+- Updated demo.py to showcase voice transformation and translation capabilities
+
+### Changed
+- Expanded project scope to include voice transformation and multilingual speech translation
+- Enhanced demo pipeline to demonstrate full accent softening and voice modification workflows
 
 ---
 
@@ -121,16 +144,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Dec 14** — ASR wrapper implementation for transcription  
 **Dec 24** — ASR phoneme timing extraction and FormantShifter DSP module  
 **Jan 26, 2026** — README and project documentation completed
+**Jan 29, 2026** - Voice transformation and speech to speech classes added
 
 ---
 
 ## Next Steps
 
+- [ ] UI for interaction on a dashboard
+- [ ] Integration of real-time use (real time audio input, not real time translation due to latencies of translate and tts modules)
 - [ ] Enhanced metrics tracking and latency profiling
 - [ ] Real-time microphone input streaming
 - [ ] Advanced pitch smoothing algorithms
 - [ ] Energy normalization and loudness matching
 - [ ] CI/CD pipeline setup (GitHub Actions)
-- [ ] Performance optimization for laptop execution
-- [ ] Extended test coverage for edge cases
 - [ ] Audio quality benchmarks and comparisons

@@ -7,9 +7,10 @@ A near-real-time audio pipeline for accent softening that combines noise suppres
 This project builds a modular, laptop-friendly audio processing pipeline that:
 - Accepts microphone or file input
 - Performs lightweight noise suppression
-- Uses ASR for phoneme alignment
+- Uses ASR for phoneme alignment and multilingual transcription
 - Applies DSP-based accent softening (formant nudges, pitch smoothing, energy normalization)
-- Stitches output with minimal drift
+- Enables voice transformation (gender/age modification) using WORLD vocoder
+- Supports multilingual speech-to-speech translation with voice cloning
 - Includes comprehensive testing and metrics tracking
 
 ## Project Structure
@@ -25,7 +26,8 @@ Core modules implementing the audio processing pipeline:
 
 - **[asr.py](src/asr.py)** — Automatic Speech Recognition integration using Whisper for phoneme/word alignment and transcription
 - **[denoiser.py](src/denoiser.py)** — Audio denoising module (RNNoise or torchaudio-based noise suppression)
-- **[formant_shifter.py](src/formant_shifter.py)** — DSP module for formant shifting and spectral modification (accent softening)
+- **[voice_transformer.py](src/voice_transformer.py)** — WORLD vocoder-based voice transformation for gender/age modification and STFT-based formant shifting with vowel-specific adjustments
+- **[speech_to_speech.py](src/speech_to_speech.py)** — Multilingual speech-to-speech translation with voice cloning using WhisperX, Google Translate, and XTTS v2
 - **[input_streamer.py](src/input_streamer.py)** — Real-time audio input handling with chunking, buffering, and overlap management
 - **[overlap_add.py](src/overlap_add.py)** — Overlap-add reconstruction for seamless audio stitching with crossfade handling
 - **[__pycache__/](__pycache__)** — Python bytecode cache (auto-generated)
@@ -39,7 +41,8 @@ Comprehensive test suite with pytest:
 - **[test_formant_shifting.py](tests/test_formant_shifting.py)** — Tests for formant modification DSP (frequency response, artifact detection)
 - **[test_phonemise.py](tests/test_phonemise.py)** — Tests for phoneme-level processing and alignment
 - **[test_streamer.py](tests/test_streamer.py)** — Tests for input streaming (jitter handling, buffering, chunking)
-- **[test_voice_transformer.py](tests/test_voice_transformer.py)** - Tests for applying voice transformations based on F0 (fundamental frequency), SP (spectral envelope), and AP (aperiodicity)
+- **[test_voice_transformer.py](tests/test_voice_transformer.py)** — Tests for voice transformation (gender/age modification, formant warping using WORLD vocoder)
+- **[test_speech_to_speech.py](tests/test_speech_to_speech.py)** — Tests for multilingual speech-to-speech translation with voice cloning
 
 ### Demo (`demo/`)
 
