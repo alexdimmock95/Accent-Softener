@@ -9,7 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+---
+
+## [0.4.0] — 2026-02-01
+
 ### Added
+- **Telegram Bot** — Interactive Telegram bot for voice-based translation and in-chat dictionary lookup
+  - Voice note processing: WhisperX transcription → Google Translate → XTTS v2 voice-cloned synthesis
+  - Post-translation UI: reply-in language button, speed presets (0.5x / 1x / 2x), and language picker
+  - Auto-flip of the next target language based on detected source language for conversational flow
+- **Wiktionary client** — Robust wikitext-based dictionary lookup using `mwparserfromhell` and Telegram-safe formatting
+- **SpeechToSpeechTranslator improvements** — Lazy-loading of WhisperX and XTTS models, improved language detection, and simplified API
+- **Telegram integration of `VoiceTransformer`** — Speed / age modification via bot controls and accessible voice transform presets
+- **Demo updates & tests** — Updated demo workflow, added/expanded tests for speech-to-speech, voice transformation, and dictionary lookups
+
+### Changed
+- Improved error handling and robustness across ASR, TTS, and dictionary modules
+- README updated to document Telegram bot and dictionary features
+
+### Fixed
+- Wiktionary fetching/parsing robustness and request headers (User-Agent)
+- Minor bugfixes and stability improvements
 
 ---
 
@@ -150,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Next Steps
 
-- [ ] UI for interaction on a dashboard
+- [x] UI for interaction on a dashboard
+- [x] Development of this on an app, see if possible to run this externally on phone
 - [ ] Integration of real-time use (real time audio input, not real time translation due to latencies of translate and tts modules)
 - [ ] Enhanced metrics tracking and latency profiling
 - [ ] Real-time microphone input streaming

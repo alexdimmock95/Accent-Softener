@@ -1,5 +1,3 @@
-# src/speech_to_speech.py
-
 import whisperx
 import librosa
 import tempfile
@@ -30,13 +28,19 @@ class SpeechToSpeechTranslator:
         # Models (initialized as None, loaded later)
         self.model = None  # Whisper model
         self.tts = None    # TTS model
+
+        # Placeholders for transcriptions and languages
+        self.source_text = ""
+        self.target_text = ""
+        self.source_language = ""
+        self.target_language = ""
     
     def _load_whisper(self):
         """Load Whisper model (lazy loading)"""
-        if self.model is None:  # ← Changed from self.whisper
-            print(f"Loading {self.model_size} model on {self.device}...")  # ← Changed variable name
-            self.model = whisperx.load_model(  # ← Changed from self.whisper
-                self.model_size,  # ← Changed from self.whisper_model_name
+        if self.model is None:
+            print(f"Loading {self.model_size} model on {self.device}...")
+            self.model = whisperx.load_model(
+                self.model_size,
                 self.device,
                 compute_type=self.compute_type
             )
@@ -61,6 +65,7 @@ class SpeechToSpeechTranslator:
         
         # Load audio (same as asr.py)
         audio = whisperx.load_audio(audio_path)
+
         
         # Transcribe (same as asr.py)
         transcription_result = self.model.transcribe(audio, self.batch_size)
@@ -73,6 +78,16 @@ class SpeechToSpeechTranslator:
         
         # Combine segment texts into single string
         text = " ".join([seg["text"].strip() for seg in segments])
+
+        # Store transcription and detect language
+        self.source_text = text.strip()
+        
+        # Try to detect language from transcription result
+        if isinstance(transcription_result, dict) and "language" in transcription_result:
+            self.source_language = transcription_result["language"]
+        else:
+            # Fallback: assume English if language not detected
+            self.source_language = "en"
         
         return text
     
@@ -87,7 +102,13 @@ class SpeechToSpeechTranslator:
         Returns:
             str: Translated text
         """
-        translator = GoogleTranslator(source='en', target=target_language)
+        translator = GoogleTranslator(source='auto', target=target_language)
+        translated = translator.translate(text)
+
+        # Store translated text and target language
+        self.target_text = translated
+        self.target_language = target_language
+
         return translator.translate(text)
     
     def synthesize(self, text, speaker_wav, language="fr"):
@@ -138,6 +159,10 @@ class SpeechToSpeechTranslator:
             print(f"      Transcribed: '{text}'")
         else:
             print(f"\n[1/3] Using provided text: '{text}'")
+            
+            # Store provided text and assume English
+            self.source_text = text
+            self.source_language = "en"  # Assume English if text provided
         
         # Step 2: Translate
         print(f"\n[2/3] Translating to {target_language}...")
@@ -154,3 +179,32 @@ class SpeechToSpeechTranslator:
         print("      ✓ Complete")
         
         return output_audio, sr
+    
+    def get_source_transcription(self):
+        """
+        Get the stored source language transcription.
+        
+        Returns:
+            str: Source transcription
+        """
+        return self.source_text
+    
+    def get_target_transcription(self):
+        """
+        Get the stored target language translation.
+        
+        Returns:
+            str: Target translation
+        """
+        return self.target_text
+    
+    def get_source_language(self):
+        """
+        Get the detected source language.
+        
+        Returns:
+            str: Source language code
+        """
+        return self.source_language
+    
+## TODO: Should this be whisperx not whisper? 

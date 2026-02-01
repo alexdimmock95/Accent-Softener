@@ -12,6 +12,9 @@ This project builds a modular, laptop-friendly audio processing pipeline that:
 - Enables voice transformation (gender/age modification) using WORLD vocoder
 - Supports multilingual speech-to-speech translation with voice cloning
 - Includes comprehensive testing and metrics tracking
+- **Telegram Bot**: Interactive Telegram bot for voice translation and in-chat dictionary lookups (`src/telegram_bot.py`)
+- **Wiktionary client**: Robust wikitext parsing (via `mwparserfromhell`) for dictionary lookups and Telegram-safe formatting
+- Lazy-loading for large models (WhisperX, XTTS) and improved demo/test coverage
 
 ## Project Structure
 
@@ -48,6 +51,8 @@ Comprehensive test suite with pytest:
 
 - **[demo.py](demo.py)** — Demo script showcasing end-to-end pipeline usage (file or mic input, output playback)
 
+- **Telegram bot** — Run `python src/telegram_bot.py` to start the interactive bot (ensure `TELEGRAM_BOT_TOKEN` is set in a `.env` file). The bot accepts voice notes, returns translations (WhisperX → Google Translate → XTTS v2), and provides dictionary lookups via Wiktionary.
+
 ### Audio Data (`audio_files/`)
 
 Directory structure for managing audio input/output:
@@ -64,7 +69,12 @@ Key Python packages (see [requirements.txt](requirements.txt)):
 
 - **Audio I/O**: soundfile, sounddevice
 - **DSP**: numpy, scipy, librosa, resampy, pyworld
-- **ASR**: openai-whisper
+- **ASR**: whisperx (WhisperX)
+- **TTS / Voice Cloning**: TTS (Coqui XTTS v2)
+- **Translation**: deep_translator (GoogleTranslator)
+- **Bot & Config**: python-telegram-bot, python-dotenv
+- **Dictionary / Parsing**: mwparserfromhell, requests
+- **Phonemization**: phonemizer
 - **ML Runtime**: onnxruntime
 - **Testing**: pytest, psutil
 

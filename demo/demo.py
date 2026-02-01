@@ -301,7 +301,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# ============================================================
-# TODO: Using coqui package, allow for options of changing accent!!!!!!!! speech-> transcription (whisper tas deja)-> translation(deep translate google translate)-> coqui model with different accent
-# ============================================================

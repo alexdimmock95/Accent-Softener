@@ -1,0 +1,1 @@
+from .wiktionary_client import fetch_definitions
