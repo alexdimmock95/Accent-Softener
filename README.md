@@ -1,4 +1,4 @@
-# Accent Softener
+# Hermes
 
 A near-real-time audio pipeline for accent softening that combines noise suppression, ASR alignment, and linguistically-informed DSP processing to subtly modify speech characteristics.
 
