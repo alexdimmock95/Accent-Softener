@@ -163,7 +163,6 @@ def clean_etymology_text(text: str) -> str:
     
     return text.strip()
 
-
 def extract_definitions(
     wikitext: str,
     language: str = "English",
@@ -188,7 +187,8 @@ def extract_definitions(
         return []
 
     language_section = lang_sections[0]
-    print(f"DEBUG: Found '{language}' section")
+    section_text = str(language_section)
+    print(f"DEBUG: Found '{language}' section ({len(section_text)} chars)")
 
     entries = []
 
@@ -199,53 +199,55 @@ def extract_definitions(
         "Determiner", "Article", "Numeral", "Proper noun"
     }
 
-    # KEY FIX: Get all headings within the language section
-    for heading in language_section.filter_headings():
+    # Get all headings
+    headings = list(language_section.filter_headings())
+    print(f"DEBUG: Found {len(headings)} total headings in language section")
+
+    # Process each POS heading
+    for heading in headings:
         heading_text = heading.title.strip_code().strip()
         
-        if heading_text not in allowed_pos:
+        # Skip the language heading itself and non-POS headings
+        if heading_text == language or heading_text not in allowed_pos:
             continue
 
-        print(f"DEBUG: Processing POS heading: '{heading_text}'")
+        print(f"DEBUG: Processing POS heading: '{heading_text}' (level {heading.level})")
 
-        # FIX: Instead of trying to get_sections again, we need to find the content
-        # that follows this heading until the next heading of the same or higher level
-        
         definitions = []
         
-        # Convert section to string and process line by line
-        section_text = str(language_section)
+        # Build the heading pattern based on the actual level
+        # Level 3 = ===, Level 4 = ====, etc.
+        equals = "=" * heading.level
+        heading_pattern = f"{equals}{heading_text}{equals}"
         
-        # Find where this POS heading starts
-        heading_pattern = f"==={heading_text}==="
-        
-        if heading_pattern not in section_text:
-            # Try level 4 heading
-            heading_pattern = f"===={heading_text}===="
+        print(f"DEBUG: Looking for pattern: '{heading_pattern}'")
         
         if heading_pattern in section_text:
             # Split at this heading and take everything after
             parts = section_text.split(heading_pattern, 1)
             if len(parts) > 1:
                 after_heading = parts[1]
+                print(f"DEBUG: Content after heading (first 300 chars):\n{after_heading[:300]}\n")
                 
                 # Take content until next heading of same or higher level
-                # Stop at === or ====
                 lines = after_heading.split('\n')
                 
                 for line in lines:
-                    # Stop if we hit another heading
-                    if line.strip().startswith('==='):
+                    # Stop if we hit another heading of equal or higher level
+                    # (fewer or equal number of = signs at the start)
+                    stripped = line.strip()
+                    if stripped.startswith('===') and not stripped.startswith('===='):
+                        print(f"DEBUG: Hit next level 3 section, stopping")
                         break
                     
                     # Look for definition lines (start with #)
-                    stripped = line.lstrip()
-                    if stripped.startswith('#') and not stripped.startswith('##'):
+                    line_stripped = line.lstrip()
+                    if line_stripped.startswith('#') and not line_stripped.startswith('##'):
                         # Remove leading # and clean
-                        clean = clean_definition(stripped.lstrip('#:* ').strip())
+                        clean = clean_definition(line_stripped.lstrip('#:* ').strip())
                         if clean and len(definitions) < max_defs_per_pos:
                             definitions.append(clean)
-                            print(f"DEBUG: Found definition: {clean[:50]}...")
+                            print(f"DEBUG: Found definition: {clean[:80]}...")
 
         if definitions:
             entries.append({
@@ -253,10 +255,11 @@ def extract_definitions(
                 "definitions": definitions[:max_defs_per_pos],
             })
             print(f"DEBUG: Added {len(definitions)} definitions for {heading_text}")
+        else:
+            print(f"DEBUG: No definitions found for {heading_text}")
 
     print(f"DEBUG: Total POS entries found: {len(entries)}")
     return entries
-
 
 def clean_definition(text: str) -> str:
     """
@@ -276,7 +279,6 @@ def clean_definition(text: str) -> str:
 
     return text.strip()
 
-
 def fetch_definitions(word: str, max_defs_per_pos: int = 5) -> dict:
     """
     High-level dictionary lookup.
@@ -285,24 +287,33 @@ def fetch_definitions(word: str, max_defs_per_pos: int = 5) -> dict:
 
     wikitext = fetch_wikitext(word)
     if not wikitext:
+        print("DEBUG fetch_definitions: No wikitext returned")
         return empty
 
     pronunciation = extract_pronunciation(wikitext)
+    print(f"DEBUG fetch_definitions: pronunciation = {pronunciation}")
+    
     etymology = extract_etymology(wikitext)
+    print(f"DEBUG fetch_definitions: etymology exists = {etymology is not None}")
+    
     entries = extract_definitions(
         wikitext,
         language="English",
         max_defs_per_pos=max_defs_per_pos,
     )
+    print(f"DEBUG fetch_definitions: entries count = {len(entries)}")
+    print(f"DEBUG fetch_definitions: entries = {entries}")
 
-    return {
+    result = {
         "word": word,
         "language": "English",
         "pronunciation": pronunciation,
         "etymology": etymology,
         "entries": entries,
     }
-
+    
+    print(f"DEBUG fetch_definitions: returning result with {len(result['entries'])} entries")
+    return result
 
 def format_for_telegram(word: str, max_defs_per_pos: int = 5) -> str:
     """

@@ -1,0 +1,22 @@
+"""Configuration constants for the Telegram bot."""
+
+LANGUAGES = {
+    "en": "🇬🇧 English (English)",
+    "es": "🇪🇸 Español (Spanish)",
+    "fr": "🇫🇷 Français (French)",
+    "de": "🇩🇪 Deutsch (German)",
+    "it": "🇮🇹 Italiano (Italian)",
+    "pt": "🇵🇹 Português (Portuguese)",
+    "pl": "🇵🇱 Polski (Polish)",
+    "tr": "🇹🇷 Türkçe (Turkish)",
+    "ru": "🇷🇺 Русский (Russian)",
+    "nl": "🇳🇱 Nederlands (Dutch)",
+    "cs": "🇨🇿 Čeština (Czech)",
+    "ar": "🇸🇦 العربية (Arabic)",
+    "zh-CN": "🇨🇳 简体中文 (Chinese Simplified)",
+    "zh-TW": "🇨🇳 中文 (Chinese)",
+    "ja": "🇯🇵 日本語 (Japanese)",
+    "hu": "🇭🇺 Magyar (Hungarian)",
+    "ko": "🇰🇷 한국어 (Korean)",
+    "hi": "🇮🇳 हिन्दी (Hindi)"
+}
