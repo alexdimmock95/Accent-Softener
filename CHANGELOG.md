@@ -10,20 +10,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Telegram Bot improvements** — Interactive bot with enhanced UX and controls:
-  - Speed presets (🐌 0.5x / 1x / 🐇 2x) with on-the-fly audio speed adjustment
-  - "Reply in" language button, language picker, and `/translate [lang_code]` command
-  - Non-Latin transliteration preview (latinisation) for scripts such as Chinese
-  - Dictionary lookups with etymology via Wiktionary (Telegram-safe formatting)
-- **Tests** — Added/updated tests for Wiktionary client and speech-to-speech flows
+- Ongoing refinements and optimization
+
+---
+
+## [0.5.0] — 2026-02-09
+
+### Added
+- **Word Statistics & Learning Progress** — Track and display user learning metrics:
+  - Database storage for learning events (src/learning/storage.py)
+  - Aggregation module for computing statistics (word frequency, learning streaks, pronunciation scores)
+  - New bot callbacks for retrieving and displaying progress data
+  - Learning event tracking system for vocabulary acquisition monitoring
+- **Enhanced Pronunciation Scoring** — Integration of ML pronunciation scorer with Telegram bot:
+  - Phoneme-level accuracy feedback
+  - User pronunciation comparison with native speakers
+  - Scoring history and progress tracking
+- **Dictionary Feature Enhancements** — Refined dictionary lookup and integration:
+  - Improved wiktionary client robustness and parsing
+  - Better etymology and definition formatting for Telegram
+  - Enhanced error handling and fallback mechanisms
 
 ### Changed
-- Improved message flow and state handling in the Telegram bot (edit/reply UX)
-- Lazy-loading and better error handling for large ASR/TTS models
+- Refactored dictionary and pronunciation modules for better modularity and testing
+- Improved learning event storage and retrieval efficiency
+- Enhanced Telegram bot handlers with new `/stats` and learning-related commands
+- Updated keyboard layouts to include new learning progress buttons
 
 ### Fixed
-- Wiktionary requests now include a `User-Agent` header to avoid 403 responses
-- Minor bugfixes and stability improvements in bot handlers and speed changes
+- Dictionary parsing edge cases and formatting issues
+- Learning event aggregation accuracy
+- Minor UI/UX improvements in Telegram bot
 
 ---
 
@@ -165,6 +182,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Focus | Status |
 |---------|------|-------|--------|
+| 0.5.0 | Feb 9, 2026 | Learning Analytics & Pronunciation Scoring Enhancements | Complete |
+| 0.4.0 | Feb 1, 2026 | Telegram Bot & Speech-to-Speech Translation | Complete |
+| 0.3.0 | Jan 29, 2026 | Voice Transformation & WORLD Vocoder Integration | Complete |
 | 0.2.0 | Dec 24, 2025 | Formant Shifting & Accent Softening DSP | Complete |
 | 0.1.2 | Dec 24, 2025 | ASR Phoneme Extraction & Timing | Complete |
 | 0.1.1 | Dec 14, 2025 | ASR Wrapper Implementation | Complete |
@@ -179,8 +199,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Dec 12** — Denoiser and overlap-add reconstruction added  
 **Dec 14** — ASR wrapper implementation for transcription  
 **Dec 24** — ASR phoneme timing extraction and FormantShifter DSP module  
-**Jan 26, 2026** — README and project documentation completed
-**Jan 29, 2026** - Voice transformation and speech to speech classes added
+**Jan 26, 2026** — README and project documentation completed  
+**Jan 29, 2026** — Voice transformation and speech-to-speech classes added  
+**Feb 1, 2026** — Telegram bot v1 release with speech-to-speech translation  
+**Feb 2-4, 2026** — Dictionary functionality enhancements and bot UX improvements  
+**Feb 8-9, 2026** — Word statistics, learning progress tracking, and pronunciation scoring integration
 
 ---
 

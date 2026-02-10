@@ -57,5 +57,6 @@ if __name__ == '__main__':
 ### TODO:Word embeddings - Create/use embeddings to find similar words; maybe with each word look up, show synonyms on a scale from A1-C2, via embeddings?
  ## TODO: is there a way to do proper formant shifting to change accent using DTW modification? 
 ## TODO: dictionary mode > look up word (english) > translate to target language > show definition in target language, with option to show english definition as well. Dictionary in multiple languages not picking words even in their correct spelling and language. 
+# TODO: flesh out language capability - explain that for translation there are x, within dictionary there are y, there are always different offerings
 
 ## python -m src.telegram_bot ##
