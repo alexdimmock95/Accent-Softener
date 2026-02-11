@@ -199,7 +199,9 @@ class SmartDifficultyClassifier:
         Falls back to a small built-in sample if the file isn't found.
         """
         lexicon = {}
-        filepath = f"cefr_data/{self.language}.txt"
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        filepath = os.path.join(script_dir, "cefr_data", f"{self.language}.txt")
 
         if os.path.exists(filepath):
             with open(filepath, encoding="utf-8") as f:

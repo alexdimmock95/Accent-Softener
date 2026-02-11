@@ -18,7 +18,7 @@ if TOKEN is None:
 from src.telegram_bot.config import LANGUAGES
 from src.telegram_bot.utils import change_speed
 from src.telegram_bot.handlers import start, set_language, handle_voice, handle_message
-from src.telegram_bot.callbacks import handle_buttons
+from src.telegram_bot.callbacks import handle_buttons, get_classifier
 from src.ml.pronunciation_score import PronunciationScore
 from src.learning.storage import initialise_db
 
@@ -36,6 +36,9 @@ def main():
     from src.telegram_bot.callbacks import get_scorer
     scorer = get_scorer()  # This caches it
     print("✓ ML models ready")
+
+    classifier = get_classifier(language="en")  # Force download now, not when user clicks
+    print("✓ Difficulty classifier ready")
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("translate", set_language))
@@ -58,5 +61,5 @@ if __name__ == '__main__':
  ## TODO: is there a way to do proper formant shifting to change accent using DTW modification? 
 ## TODO: dictionary mode > look up word (english) > translate to target language > show definition in target language, with option to show english definition as well. Dictionary in multiple languages not picking words even in their correct spelling and language. 
 # TODO: flesh out language capability - explain that for translation there are x, within dictionary there are y, there are always different offerings
-
-## python -m src.telegram_bot ##
+#### TODO: when user searches a word in dictionary, have button to (if verb) conjugations, (if noun) other variations of the lemma, (if adjective) comparative/superlative forms, etc.
+### TODO: ensure response messages from the dictionary or translator stay in the message thread. so that new ones come in on new messages, then stay there

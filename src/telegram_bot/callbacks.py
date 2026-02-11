@@ -7,7 +7,8 @@ from src.dictionary.wiktionary_client import (
     generate_pronunciation_audio
 )
 from src.telegram_bot.keyboards import (
-    dictionary_result_keyboard,
+    dictionary_result_keyboard, 
+    difficulty_result_keyboard,
     build_language_keyboard,
     home_keyboard,
     post_translate_keyboard,
@@ -29,6 +30,21 @@ def get_scorer():
         print("Initializing pronunciation scorer for first use...")
         PRONUNCIATION_SCORER = PronunciationScore()
     return PRONUNCIATION_SCORER
+
+
+# Global difficulty classifier instance
+# Loaded once on first use, reused for every button press after that
+DIFFICULTY_CLASSIFIER = None
+
+
+def get_classifier(language: str = "en"):
+    global DIFFICULTY_CLASSIFIER
+    # If the language has changed since last load, reload for the new language
+    if DIFFICULTY_CLASSIFIER is None or DIFFICULTY_CLASSIFIER.language != language:
+        print(f"Loading difficulty classifier for language: {language}")
+        from src.dictionary.cefr import SmartDifficultyClassifier
+        DIFFICULTY_CLASSIFIER = SmartDifficultyClassifier(language=language)
+    return DIFFICULTY_CLASSIFIER
 
 
 async def safe_message_update(query, text, parse_mode="Markdown", reply_markup=None):
@@ -85,6 +101,9 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("practice_"):
         word = data.replace("practice_", "")
         await handle_practice_mode(update, context, word)
+    elif data.startswith("smart_synonyms_"):
+        word = data.replace("smart_synonyms_", "")
+        await handle_synonyms(update, context, word)
     elif data.startswith("back_def_"):
         word = data.replace("back_def_", "")
         await handle_back_to_definition(update, context, word)
@@ -296,6 +315,56 @@ async def handle_word_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         
         await safe_message_update(query, error_msg, reply_markup=keyboard)
+
+async def handle_synonyms(update: Update, context: ContextTypes.DEFAULT_TYPE, word: str):
+    """
+    Show CEFR difficulty level and synonyms at each level for a word.
+
+    Uses SmartDifficultyClassifier:
+      - Looks the word up in the CEFR lexicon first (fast, accurate)
+      - Falls back to word embeddings if not found (slower but handles any word)
+
+    The confidence score is never shown to the user — it's debug-only.
+    """
+    query = update.callback_query
+
+    # Show a loading message while the classifier runs
+    # (embedding lookup can take a second)
+    await safe_message_update(
+        query,
+        f"🔍 Analysing difficulty for *{word}*..."
+    )
+
+    try:
+        from src.dictionary.cefr import format_result_for_user
+
+        target_lang = context.user_data.get('target_lang', 'en')
+
+        # get_classifier() reuses the already-loaded model if language matches
+        # Only reloads if the user has switched to a different language
+        classifier = get_classifier(language=target_lang)
+        result = classifier.classify_with_synonyms(word)
+
+        # format_result_for_user() never includes confidence — that's debug-only
+        formatted = format_result_for_user(result)
+
+        from src.telegram_bot.keyboards import difficulty_result_keyboard
+        await safe_message_update(
+            query,
+            formatted,
+            reply_markup=difficulty_result_keyboard(word)
+        )
+
+    except Exception as e:
+        import traceback
+        print(f"ERROR in handle_difficulty: {traceback.format_exc()}")
+
+        await safe_message_update(
+            query,
+            f"❌ Sorry, couldn't analyse difficulty for *{word}*.\n\n"
+            f"Error: {str(e)}",
+            reply_markup=difficulty_result_keyboard(word)
+        )
 
 
 # ============================================================================
