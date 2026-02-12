@@ -1,6 +1,6 @@
 # src/dictionary/wiktionary_client.py
 # Wiktionary client using raw wikitext + mwparserfromhell
-# FIXED VERSION - Better section handling
+# FIXED VERSION - Better section handling - supports multiple language Wiktionaries
 
 import requests
 import mwparserfromhell
@@ -8,20 +8,63 @@ import re
 from gtts import gTTS
 import io
 from src.dictionary.corpus_examples import fetch_corpus_examples
+from src.telegram_bot.config import WIKTIONARY_LANGUAGES
 
-WIKTIONARY_API = "https://en.wiktionary.org/w/api.php"
+WIKTIONARY_API_EN = "https://en.wiktionary.org/w/api.php"
+
+# Map language codes to Wiktionary language domains
+WIKTIONARY_DOMAINS = {
+    "en": "https://en.wiktionary.org/w/api.php",
+    "es": "https://es.wiktionary.org/w/api.php",
+    "fr": "https://fr.wiktionary.org/w/api.php",
+    "de": "https://de.wiktionary.org/w/api.php",
+    "it": "https://it.wiktionary.org/w/api.php",
+    "pt": "https://pt.wiktionary.org/w/api.php",
+    "ru": "https://ru.wiktionary.org/w/api.php",
+    "pl": "https://pl.wiktionary.org/w/api.php",
+    "ja": "https://ja.wiktionary.org/w/api.php",
+    "zh-CN": "https://zh.wiktionary.org/w/api.php",
+    "zh-TW": "https://zh.wiktionary.org/w/api.php",
+}
 
 HEADERS = {
     "User-Agent": "DictionaryBot/1.0 (Educational Project; Contact: user@example.com)"
 }
 
 
-def fetch_wikitext(word: str) -> str | None:
+def fetch_wikitext(word: str, language_code: str = "en") -> str | None:
     """
     Fetch raw Wiktionary wikitext for a given word using MediaWiki API.
+    Tries to fetch from the language-specific Wiktionary first, then falls back to English Wiktionary.
 
+    Args:
+        word: The word to look up
+        language_code: Language code (e.g., "en", "fr", "es")
+    
     Returns:
         Raw wikitext string, or None if page does not exist.
+    """
+    # Try language-specific Wiktionary first (if available)
+    if language_code in WIKTIONARY_DOMAINS and language_code != "en":
+        api_url = WIKTIONARY_DOMAINS[language_code]
+        wikitext = _fetch_from_api(word, api_url, language_code)
+        if wikitext:
+            print(f"DEBUG: Fetched from {language_code}.wiktionary.org")
+            return wikitext
+        print(f"DEBUG: Word not found on {language_code}.wiktionary.org, trying en.wiktionary.org")
+    
+    # Fall back to English Wiktionary
+    wikitext = _fetch_from_api(word, WIKTIONARY_API_EN, "en")
+    if wikitext:
+        print(f"DEBUG: Fetched from en.wiktionary.org")
+        return wikitext
+    
+    return None
+
+
+def _fetch_from_api(word: str, api_url: str, lang_code: str) -> str | None:
+    """
+    Helper to fetch from a specific Wiktionary API.
     """
     params = {
         "action": "parse",
@@ -30,20 +73,24 @@ def fetch_wikitext(word: str) -> str | None:
         "format": "json",
     }
 
-    resp = requests.get(WIKTIONARY_API, params=params, headers=HEADERS, timeout=10)
-    if resp.status_code != 200:
+    try:
+        resp = requests.get(api_url, params=params, headers=HEADERS, timeout=10)
+        if resp.status_code != 200:
+            return None
+
+        data = resp.json()
+
+        if "error" in data:
+            print(f"DEBUG: Wiktionary API ({lang_code}) returned error for '{word}':", data["error"])
+            return None
+
+        wikitext = data["parse"]["wikitext"]["*"]
+        print(f"DEBUG: Successfully fetched wikitext for '{word}' from {lang_code} ({len(wikitext)} chars)")
+
+        return wikitext
+    except Exception as e:
+        print(f"DEBUG: Error fetching from {lang_code} Wiktionary: {e}")
         return None
-
-    data = resp.json()
-
-    if "error" in data:
-        print(f"DEBUG: Wiktionary API returned error for '{word}':", data["error"])
-        return None
-
-    wikitext = data["parse"]["wikitext"]["*"]
-    print(f"DEBUG: Successfully fetched wikitext for '{word}' ({len(wikitext)} chars)")
-
-    return wikitext 
 
 
 def extract_pronunciation(wikitext: str, language: str = "English") -> str | None:
@@ -346,18 +393,19 @@ def clean_definition(text: str) -> str:
 
     return text.strip()
 
-def fetch_definitions(word: str, language: str = "English", max_defs_per_pos: int = 5) -> dict:
+def fetch_definitions(word: str, language: str = "English", language_code: str = "en", max_defs_per_pos: int = 5) -> dict:
     """
     High-level dictionary lookup.
     
     Args:
         word: The word to look up
-        language: Target language (e.g., "English", "French", "Spanish")
+        language: Target language name (e.g., "English", "French", "Spanish") - for backwards compatibility
+        language_code: Language code for Wiktionary lookup (e.g., "en", "fr", "es")
         max_defs_per_pos: Max definitions per part of speech
     """
     empty = {"word": word, "language": language, "pronunciation": None, "etymology": None, "entries": []}
 
-    wikitext = fetch_wikitext(word)
+    wikitext = fetch_wikitext(word, language_code=language_code)
     if not wikitext:
         print("DEBUG fetch_definitions: No wikitext returned")
         return empty
@@ -385,11 +433,17 @@ def fetch_definitions(word: str, language: str = "English", max_defs_per_pos: in
     
     return result
 
-def format_for_telegram(word: str, language: str = "English", max_defs_per_pos: int = 5) -> str:
+def format_for_telegram(word: str, language: str = "English", language_code: str = "en", max_defs_per_pos: int = 5) -> str:
     """
     Format dictionary output for Telegram Markdown.
+    
+    Args:
+        word: The word to look up
+        language: Target language name (e.g., "English", "French")
+        language_code: Language code for Wiktionary lookup (e.g., "en", "fr")
+        max_defs_per_pos: Max definitions per part of speech
     """
-    result = fetch_definitions(word, language=language, max_defs_per_pos=max_defs_per_pos)
+    result = fetch_definitions(word, language=language, language_code=language_code, max_defs_per_pos=max_defs_per_pos)
 
     if not result["entries"]:
         return f"❌ No {language} definition found for '*{word}*'."

@@ -16,7 +16,7 @@ LANGUAGES_BY_FAMILY = {
     "Slavic": {
         "cs": "🇨🇿 Čeština",
         "pl": "🇵🇱 Polski",
-        "ru": "🇷🇺 Русский",
+        "ru": "🇷🇺 Русский (Russkij)",
     },
     "Uralic": {
         "hu": "🇭🇺 Magyar",
@@ -45,7 +45,7 @@ LANGUAGES = {
     "nl": "🇳🇱 Nederlands",
     "cs": "🇨🇿 Čeština",
     "pl": "🇵🇱 Polski",
-    "ru": "🇷🇺 Русский",
+    "ru": "🇷🇺 Русский (Russkij)",
     "hu": "🇭🇺 Magyar",
     "ar": "🇸🇦 العربية (al-ʿArabiyyah)",
     "tr": "🇹🇷 Türkçe",
@@ -77,4 +77,10 @@ WIKTIONARY_LANGUAGES = {
     "hu": "Hungarian",
     "ko": "Korean",
     "hi": "Hindi"
+}
+
+# Supported languages for CEFR difficulty classification
+# These are the only languages that have CEFR data available
+DIFFICULTY_SUPPORTED_LANGUAGES = {
+    "en", "de", "fr", "es", "it", "pt", "nl", "ru", "zh-CN", "zh-TW", "ja", "ko", "ar"
 }

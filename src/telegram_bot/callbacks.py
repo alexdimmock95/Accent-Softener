@@ -47,12 +47,19 @@ def get_classifier(language: str = "en"):
     return DIFFICULTY_CLASSIFIER
 
 
-async def safe_message_update(query, text, parse_mode="Markdown", reply_markup=None):
+async def safe_message_update(query, text, parse_mode="Markdown", reply_markup=None, thread_id=None):
     """
     Safely update or send a message, handling both text and non-text messages.
     
     If the original message is a voice/photo/video, send a new text message.
     If it's a text message, edit it.
+    
+    Args:
+        query: The callback query
+        text: Message text
+        parse_mode: Markdown or HTML
+        reply_markup: Keyboard markup
+        thread_id: Message ID to thread replies to (for keeping conversations in thread)
     """
     try:
         # Try to edit the existing message
@@ -65,11 +72,12 @@ async def safe_message_update(query, text, parse_mode="Markdown", reply_markup=N
         error_str = str(e).lower()
         if "no text in the message" in error_str or "message can't be edited" in error_str:
             # Original message is voice/photo/video or can't be edited
-            # Send a new message instead
+            # Send a new message instead (optionally in thread)
             await query.message.reply_text(
                 text,
                 parse_mode=parse_mode,
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
+                reply_to_message_id=thread_id or query.message.message_id
             )
         else:
             # Some other error - re-raise it
@@ -83,11 +91,6 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     data = query.data
-    
-    # No-op for dividers (language family labels)
-    if data == "noop":
-        await query.answer()
-        return
     
     # Language selection
     if data == "choose_language":
@@ -165,7 +168,7 @@ async def handle_set_language(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     await safe_message_update(
         query,
-        f"✅ *Target language set to: {lang_name}*\n\n"
+        f"*Target language set to: {lang_name}*\n\n"
         f"Send a voice message or type a message to translate into {lang_name}.",
         reply_markup=home_keyboard()
     )
@@ -180,9 +183,12 @@ async def handle_pronunciation(update: Update, context: ContextTypes.DEFAULT_TYP
     query = update.callback_query
     
     try:
+        thread_id = query.message.message_id
+        
         await safe_message_update(
             query,
-            f"🔊 Generating pronunciation for *{word}*..."
+            f"🔊 Generating pronunciation for *{word}*...",
+            thread_id=thread_id
         )
         
         audio_buffer = generate_pronunciation_audio(word)
@@ -191,14 +197,17 @@ async def handle_pronunciation(update: Update, context: ContextTypes.DEFAULT_TYP
             chat_id=query.message.chat_id,
             voice=audio_buffer,
             caption=f"🔊 Pronunciation: *{word}*",
-            parse_mode="Markdown"
+            parse_mode="Markdown",
+            reply_to_message_id=thread_id
         )
         
         from src.dictionary.wiktionary_client import format_for_telegram
-        definition_text = format_for_telegram(word)
-        keyboard = dictionary_result_keyboard(word)
+        target_lang = context.user_data.get('target_lang', 'en')
+        language = WIKTIONARY_LANGUAGES.get(target_lang, 'English')
+        definition_text = format_for_telegram(word, language=language, language_code=target_lang)
+        keyboard = dictionary_result_keyboard(word, language_code=target_lang)
         
-        await safe_message_update(query, definition_text, reply_markup=keyboard)
+        await safe_message_update(query, definition_text, reply_markup=keyboard, thread_id=thread_id)
         
     except Exception as e:
         await safe_message_update(
@@ -244,10 +253,12 @@ async def handle_back_to_definition(update: Update, context: ContextTypes.DEFAUL
     query = update.callback_query
     
     from src.dictionary.wiktionary_client import format_for_telegram
-    definition_text = format_for_telegram(word)
-    keyboard = dictionary_result_keyboard(word)
+    target_lang = context.user_data.get('target_lang', 'en')
+    language = WIKTIONARY_LANGUAGES.get(target_lang, 'English')
+    definition_text = format_for_telegram(word, language=language, language_code=target_lang)
+    keyboard = dictionary_result_keyboard(word, language_code=target_lang)
     
-    await safe_message_update(query, definition_text, reply_markup=keyboard)
+    await safe_message_update(query, definition_text, reply_markup=keyboard, thread_id=query.message.message_id)
 
 
 async def handle_open_dictionary(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -257,10 +268,16 @@ async def handle_open_dictionary(update: Update, context: ContextTypes.DEFAULT_T
     print("DEBUG: handle_open_dictionary called!")
     context.user_data["awaiting_dictionary_word"] = True
     
+    # Get current target language
+    target_lang = context.user_data.get('target_lang', 'en')
+    lang_name = LANGUAGES.get(target_lang, target_lang)
+    
     await safe_message_update(
         query,
         "📖 *Dictionary*\n\n"
-        "Type the word you want to look up:"
+        f"🌍 *Target language: {lang_name}*\n\n"
+        "Type the word you want to look up:",
+        thread_id=query.message.message_id
     )
 
 
@@ -331,18 +348,29 @@ async def handle_synonyms(update: Update, context: ContextTypes.DEFAULT_TYPE, wo
     The confidence score is never shown to the user — it's debug-only.
     """
     query = update.callback_query
+    target_lang = context.user_data.get('target_lang', 'en')
+    
+    # Check if language is supported
+    from src.telegram_bot.config import DIFFICULTY_SUPPORTED_LANGUAGES
+    if target_lang not in DIFFICULTY_SUPPORTED_LANGUAGES:
+        await safe_message_update(
+            query,
+            f"❌ Smart Synonyms is not available for this language yet.\n\n"
+            f"Currently supported: English, French, Spanish, German, and others.",
+            thread_id=query.message.message_id
+        )
+        return
 
     # Show a loading message while the classifier runs
     # (embedding lookup can take a second)
     await safe_message_update(
         query,
-        f"🔍 Analysing difficulty of *{word}*..."
+        f"🔍 Analysing difficulty of *{word}*...",
+        thread_id=query.message.message_id
     )
 
     try:
         from src.dictionary.cefr import format_result_for_user
-
-        target_lang = context.user_data.get('target_lang', 'en')
 
         # get_classifier() reuses the already-loaded model if language matches
         # Only reloads if the user has switched to a different language
@@ -356,7 +384,8 @@ async def handle_synonyms(update: Update, context: ContextTypes.DEFAULT_TYPE, wo
         await safe_message_update(
             query,
             formatted,
-            reply_markup=difficulty_result_keyboard(word)
+            reply_markup=difficulty_result_keyboard(word),
+            thread_id=query.message.message_id
         )
 
     except Exception as e:
@@ -367,7 +396,8 @@ async def handle_synonyms(update: Update, context: ContextTypes.DEFAULT_TYPE, wo
             query,
             f"❌ Couldn't analyse difficulty for *{word}*.\n\n"
             f"Error: {str(e)}",
-            reply_markup=difficulty_result_keyboard(word)
+            reply_markup=difficulty_result_keyboard(word),
+            thread_id=query.message.message_id
         )
 
 

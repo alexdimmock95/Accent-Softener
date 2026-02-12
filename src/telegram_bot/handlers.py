@@ -307,7 +307,8 @@ async def handle_pronunciation_scoring(
 
         response += "\nTry again or choose another option:"
 
-        keyboard = dictionary_result_keyboard(word)
+        target_lang = context.user_data.get('target_lang', 'en')
+        keyboard = dictionary_result_keyboard(word, language_code=target_lang)
         
         # Delete processing message and send results
         await processing_msg.delete()
@@ -333,7 +334,7 @@ async def handle_pronunciation_scoring(
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle text messages (primarily for dictionary lookups)."""
+    """Handle text messages - for dictionary lookups or text translation."""
     
     if context.user_data.get("awaiting_dictionary_word"):
         word = update.message.text.strip().lower()
@@ -352,18 +353,122 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         formatted_message = format_for_telegram(
             word, 
-            language=language, 
+            language=language,
+            language_code=target_lang,
             max_defs_per_pos=5
         )
         
         await update.message.reply_text(
             formatted_message, 
             parse_mode="Markdown",
-            reply_markup=dictionary_result_keyboard(word)
+            reply_markup=dictionary_result_keyboard(word, language_code=target_lang),
+            reply_to_message_id=update.message.message_id
         )
     else:
-        # If not awaiting dictionary word, maybe inform user
+        # Otherwise treat as text for translation
+        await handle_text_translation(update, context)
+
+
+async def handle_text_translation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle text message translation using Google TTS for target language audio."""
+    # Snapshot target_lang
+    target_lang = context.user_data.get('target_lang', 'fr')
+    input_text = update.message.text.strip()
+
+    if not input_text:
         await update.message.reply_text(
-            "I'm not sure what to do with that. Use the buttons or /start to begin.",
+            "Please enter some text to translate.",
+            reply_markup=home_keyboard()
+        )
+        return
+
+    try:
+        # --- Detect input language ---
+        from langdetect import detect_langs
+        try:
+            detected_langs = detect_langs(input_text)
+            detected_lang_code = detected_langs[0].lang if detected_langs else 'en'
+            # Map langdetect codes to our codes (e.g., 'zh-cn' -> 'zh-CN')
+            if detected_lang_code == 'zh-cn':
+                detected_lang_code = 'zh-CN'
+            elif detected_lang_code == 'zh-tw':
+                detected_lang_code = 'zh-TW'
+        except:
+            detected_lang_code = 'en'  # Fallback to English
+        
+        detected_lang_name = LANGUAGES.get(detected_lang_code, detected_lang_code)
+
+        # --- Translate ---
+        translate_msg = await update.message.reply_text(
+            f"⏳ Translating...",
+            parse_mode="Markdown"
+        )
+        translated_text = translator.translate(input_text, target_language=target_lang)
+
+        # Check if target language is non-Latin
+        if target_lang in NON_LATIN_LANGS:
+            latin = latinise(translated_text, target_lang)
+            if latin:
+                final_text = (
+                    f"➡️ *{LANGUAGES[target_lang]}*\n"
+                    f"{translated_text}\n\n"
+                    f"_{latin}_\n\n"
+                    f"⏳ Generating audio..."
+                )
+            else:
+                final_text = (
+                    f"➡️ *{LANGUAGES[target_lang]}*\n{translated_text}\n"
+                    f"⏳ Generating audio...")
+        else:
+            final_text = (
+                f"➡️ *{LANGUAGES[target_lang]}*\n"
+                f"{translated_text}\n"
+                f"⏳ Generating audio..."
+            )
+
+        await translate_msg.edit_text(final_text, parse_mode="Markdown")
+
+        # --- Generate audio using Google TTS for target language ---
+        from gtts import gTTS
+        tts = gTTS(text=translated_text, lang=target_lang, slow=False)
+        output_path = "text_translation_output.wav"
+        with open(output_path, 'wb') as f:
+            tts.write_to_fp(f)
+
+        # --- After audio is ready, remove "⏳ Generating audio..." but keep Latinisation
+        if target_lang in NON_LATIN_LANGS and latin:
+            clean_text = (
+                f"➡️ *{LANGUAGES[target_lang]}*\n"
+                f"{translated_text}\n\n"
+                f"_{latin}_"
+            )
+        else:
+            clean_text = f"➡️ *{LANGUAGES[target_lang]}*\n{translated_text}"
+
+        await translate_msg.edit_text(clean_text, parse_mode="Markdown")
+
+        # --- Store state for buttons ---
+        context.user_data["last_target_lang"] = target_lang
+        context.user_data["last_detected_lang"] = detected_lang_code  # The detected input language
+        context.user_data["last_translated_text"] = translated_text
+        context.user_data["last_translated_lang"] = target_lang
+
+        # --- Send audio + all buttons in one message ---
+        await update.message.reply_voice(
+            voice=open(output_path, 'rb'),
+            caption="What would you like to do next?",
+            reply_markup=post_translate_keyboard(
+                last_detected_lang=detected_lang_code
+            )
+        )
+
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"ERROR in text translation: {error_details}")
+        
+        await update.message.reply_text(
+            f"❌ Error translating text: {str(e)}\n\n"
+            f"Please try again.",
             reply_markup=home_keyboard()
         )
