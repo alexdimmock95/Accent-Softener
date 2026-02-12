@@ -31,14 +31,9 @@ def main():
     initialise_db()
     print("✓ Database ready")
 
-    # Pre-load ML model at startup
-    print("Loading ML models...")
-    from src.telegram_bot.callbacks import get_scorer
-    scorer = get_scorer()  # This caches it
-    print("✓ ML models ready")
-
-    classifier = get_classifier(language="en")  # Force download now, not when user clicks
-    print("✓ Difficulty classifier ready")
+    # ML models load on first use (lazy loading) to keep startup fast
+    # They'll be cached after first use, so second+ requests are instant
+    print("✓ ML models ready (loading on demand)")
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("translate", set_language))
@@ -56,8 +51,6 @@ if __name__ == '__main__':
 ###### TODO: Add in capability to press "pronunciation" or "syntax" for IPA, tongue position/shape info and word type, grammar info, respectively.
 ### TODO/ language aware wiktionary - if detected language is french, wiktionary french version
 ### TODO: What other models other than xtts can I use? Ones that are ideally faster, more languages
-### TODO: Difficulty classifier - Train a model to rate word difficulty (A1-C2 levels);
-### TODO:Word embeddings - Create/use embeddings to find similar words; maybe with each word look up, show synonyms on a scale from A1-C2, via embeddings?
  ## TODO: is there a way to do proper formant shifting to change accent using DTW modification? 
 ## TODO: dictionary mode > look up word (english) > translate to target language > show definition in target language, with option to show english definition as well. Dictionary in multiple languages not picking words even in their correct spelling and language. 
 # TODO: flesh out language capability - explain that for translation there are x, within dictionary there are y, there are always different offerings

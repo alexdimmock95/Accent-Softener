@@ -15,6 +15,17 @@ import os
 # ─────────────────────────────────────────────
 DEBUG = os.getenv("BOT_DEBUG", "false").lower() == "true"
 
+# ─────────────────────────────────────────────
+# EMBEDDINGS CACHE FLAG — set to True to SKIP loading embeddings entirely
+# Useful when you want to iterate quickly without waiting for downloads/loads
+# Falls back to "UNKNOWN" for words not in the lexicon
+# ─────────────────────────────────────────────
+DISABLE_EMBEDDINGS = os.getenv("DISABLE_EMBEDDINGS", "false").lower() == "true"
+if DISABLE_EMBEDDINGS:
+    print("⚠️  EMBEDDINGS DISABLED (DISABLE_EMBEDDINGS=true)")
+    print("    Only lexicon lookups will be used. Unknown words → 'UNKNOWN'")
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LANGUAGE CONFIGURATION
@@ -175,13 +186,14 @@ class SmartDifficultyClassifier:
         self.language = language
         self.config = LANGUAGE_CONFIG[language]
         self.lexicon = self._load_cefr_lexicon()
-        self.embeddings = self._load_embeddings()
+        self.embeddings = None  # Lazy-loaded on first use
+        self._embeddings_load_attempted = False
 
         if DEBUG:
             print(f"[DEBUG] Loaded classifier for {self.config['name']}")
             print(f"[DEBUG] Lexicon size: {len(self.lexicon)} words")
-            print(f"[DEBUG] Embeddings loaded: {self.embeddings is not None}")
             print(f"[DEBUG] Coverage rating: {self.config['coverage']}")
+            print(f"[DEBUG] Embeddings will load on demand (lazy loading)")
 
     # ─────────────────────────────────────────────
     # LEXICON LOADING
@@ -267,16 +279,45 @@ class SmartDifficultyClassifier:
     # EMBEDDING LOADING
     # ─────────────────────────────────────────────
 
+    def _ensure_embeddings_loaded(self):
+        """
+        Lazy-load embeddings on first use.
+        Only loads if not already loaded and hasn't failed before.
+        """
+        if self.embeddings is not None or self._embeddings_load_attempted:
+            return  # Already loaded or already tried to load
+        
+        self._embeddings_load_attempted = True
+        self.embeddings = self._load_embeddings()
+
     def _load_embeddings(self):
         """
         Load pre-trained word embeddings via gensim.
         Downloads automatically on first use (one-time, ~100–300MB depending on model).
 
         Install gensim first:  pip install gensim
+        
+        Set DISABLE_EMBEDDINGS=true environment variable to skip loading for faster iteration.
         """
+        # Quick exit if embeddings are disabled
+        if DISABLE_EMBEDDINGS:
+            print(f"⚠️  Embeddings disabled for {self.config['name']} — unknown words will be 'UNKNOWN'")
+            return None
+            
         try:
             import gensim.downloader as api
             model_name = self.config["embedding_model"]
+            
+            # Check if model is already cached locally
+            info = api.info(model_name)
+            if info and api.base_dir is not None:
+                model_path = os.path.join(api.base_dir, model_name)
+                if os.path.exists(model_path):
+                    print(f"Loading cached embeddings for {self.config['name']}...")
+                    embeddings = api.load(model_name, return_path=False)
+                    print("Embeddings ready!")
+                    return embeddings
+            
             print(f"Loading embeddings for {self.config['name']}...")
             print("(This only downloads once, then it's cached locally)")
             embeddings = api.load(model_name)
@@ -311,6 +352,9 @@ class SmartDifficultyClassifier:
 
         Confidence is only exposed to the user interface when DEBUG is True.
         """
+        # Lazy-load embeddings on first use
+        self._ensure_embeddings_loaded()
+        
         if self.embeddings is None or word not in self.embeddings:
             return "UNKNOWN", 0.0, []
 
@@ -372,6 +416,9 @@ class SmartDifficultyClassifier:
         }
         Empty lists mean no similar words were found at that level.
         """
+        # Lazy-load embeddings on first use
+        self._ensure_embeddings_loaded()
+        
         if self.embeddings is None or word not in self.embeddings:
             return {level: [] for level in CEFR_LEVELS}
 
