@@ -6,6 +6,7 @@ import tempfile
 import soundfile as sf
 import librosa
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from src.telegram_bot.config import LANGUAGES
 from src.telegram_bot.keyboards import (
     post_translate_keyboard,
@@ -350,17 +351,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         emit_word_event(user_id, word, "dictionary")
 
-        formatted_message = format_for_telegram_with_buttons(
-            word, 
+        formatted_text, word_forms_kb = format_for_telegram_with_buttons(
+            word,
             language=language,
             language_code=target_lang,
             max_defs_per_pos=5
         )
-        
+
+        main_kb = dictionary_result_keyboard(word, language_code=target_lang)
+        if word_forms_kb and word_forms_kb.inline_keyboard:
+            combined_rows = word_forms_kb.inline_keyboard + main_kb.inline_keyboard
+            reply_markup = InlineKeyboardMarkup(combined_rows)
+        else:
+            reply_markup = main_kb
+
         await update.message.reply_text(
-            formatted_message, 
+            formatted_text,
             parse_mode="Markdown",
-            reply_markup=dictionary_result_keyboard(word, language_code=target_lang),
+            reply_markup=reply_markup,
             reply_to_message_id=update.message.message_id
         )
     else:

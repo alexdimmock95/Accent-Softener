@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Accent Softener project are documented in this file.
+All notable changes to the hermes project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -10,7 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Word form buttons after dictionary lookup (Conjugations / Plural form / Comparative forms) shown with definition
 - Ongoing refinements and optimization
+
+### Changed
+- README focused on Telegram bot, dictionary, and learning; removed obsolete real-time pipeline emphasis
+- CHANGELOG: project name, Next Steps trimmed of irrelevant items
 
 ---
 
@@ -209,22 +214,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Next Steps
 
-- [x] UI for interaction on a dashboard
-- [x] Development of this on an app, see if possible to run this externally on phone
-- [ ] Integration of real-time use (real time audio input, not real time translation due to latencies of translate and tts modules)
 - [ ] Enhanced metrics tracking and latency profiling
-- [ ] Real-time microphone input streaming
-- [ ] Advanced pitch smoothing algorithms
-- [ ] Energy normalization and loudness matching
 - [ ] CI/CD pipeline setup (GitHub Actions)
-- [ ] Audio quality benchmarks and comparisons
 - [ ] Add in capability to press "pronunciation" or "syntax" for IPA, tongue position/shape info and word type, grammar info, respectively.
-- [ ] language aware wiktionary - if detected language is french, wiktionary french version
-- [ ] What other models other than xtts can I use? Ones that are ideally faster, more languages
-- [ ] is there a way to do proper formant shifting to change accent using DTW modification? 
-- [ ] dictionary mode > look up word (english) > translate to target language > show definition in target language, with option to show english definition as well. Dictionary in multiple languages not picking words even in their correct spelling and language. 
-- [ ] if the text/voice translate input is one word, show the {target lang}.wiktionary definition of that word
-- [ ] flesh out language capability - explain that for translation there are x, within dictionary there are y, there are always different offerings
-- [ ] when user searches a word in dictionary, have button to (if verb) conjugations, (if noun) other variations of the lemma, (if adjective) comparative/superlative forms, etc.
-- [ ] ensure response messages from the dictionary or translator stay in the message thread. so that new ones come in on new messages, then stay there
-- [ ] no module named langdetect
+- [ ] Language-aware Wiktionary (e.g. French Wiktionary when target is French)
+- [ ] Dictionary: look up word → translate to target language → show definition in target language, with option to show English definition
+- [ ] When text/voice translate input is one word, show target-language Wiktionary definition
+- [ ] Flesh out language capability (translation vs dictionary language sets)
+- [ ] Ensure dictionary/translator replies stay in message thread

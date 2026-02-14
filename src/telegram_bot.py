@@ -48,6 +48,6 @@ if __name__ == '__main__':
     main()
 
 
-    #TODO: text input in translate not working, saying no langdetect
     #TODO: dictionary result not parsing correctly or formatting
     #TODO: forms button not showing up after a word has been input into dictionary function
+    #TODO: ensure readme and changelog are actually talking relevant shit about the project

@@ -101,6 +101,7 @@ jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 julius==0.2.7
 kiwisolver @ file:///Users/runner/miniforge3/conda-bld/bld/rattler-build_kiwisolver_1762488860/work
+langdetect==1.0.9
 language-tags==1.2.0
 lazy_loader @ file:///home/conda/feedstock_root/build_artifacts/lazy-loader_1733636780672/work
 Levenshtein==0.27.3

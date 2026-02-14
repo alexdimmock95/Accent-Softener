@@ -1,218 +1,111 @@
 # hermes
 
-A near-real-time audio pipeline for accent softening that combines noise suppression, ASR alignment, and linguistically-informed DSP processing to subtly modify speech characteristics.
+A Telegram bot for multilingual voice and text translation, in-chat dictionary lookups, and learning tools (pronunciation practice, word statistics).
 
 ## Project Overview
 
-This project builds a modular, laptop-friendly audio processing pipeline that:
-- Accepts microphone or file input
-- Performs lightweight noise suppression
-- Uses ASR for phoneme alignment and multilingual transcription
-- Applies DSP-based accent softening (formant nudges, pitch smoothing, energy normalization)
-- Enables voice transformation (gender/age modification) using WORLD vocoder
-- Supports multilingual speech-to-speech translation with voice cloning
-- Includes comprehensive testing and metrics tracking
-- **Telegram Bot**: Interactive Telegram bot for voice translation and in-chat dictionary lookups (`src/telegram_bot.py`)
-- **Wiktionary client**: Robust wikitext parsing (via `mwparserfromhell`) for dictionary lookups and Telegram-safe formatting
-- Lazy-loading for large models (WhisperX, XTTS) and improved demo/test coverage
+The bot is the main interface. It provides:
+
+- **Translation** — Voice note or text → WhisperX transcription → Google Translate → XTTS v2 voice-cloned audio. Language picker, “Reply in X” for conversational flow, speed presets (0.5x / 1x / 2x).
+- **Dictionary** — Wiktionary lookups with definitions, etymology, examples, and **word-form buttons** (conjugations for verbs, plural for nouns, comparative/superlative for adjectives). Pronunciation audio, etymology, practice pronunciation, and Smart Synonyms (CEFR) where supported.
+- **Learning** — Event storage, word stats, pronunciation scoring (Wav2Vec2 + DTW), and `/stats` for progress.
+
+Under the hood it uses: **speech_to_speech** (WhisperX, Google Translate, XTTS), **voice_transformer** (speed/age/gender presets), **wiktionary_client** (mwparserfromhell, Telegram-safe formatting), **learning** (SQLite, aggregations), **ml/pronunciation_score**.
 
 ## Project Structure
 
-### Root Level Files
+### Root
 
-- **[README.md](README.md)** — This file; project documentation
-- **[requirements.txt](requirements.txt)** — Python dependencies (numpy, scipy, soundfile, torch, whisper, librosa, pytest, etc.)
+- **[README.md](README.md)** — This file
+- **[requirements.txt](requirements.txt)** — Python dependencies
 
-### Source Code (`src/`)
+### Source (`src/`)
 
-Core modules implementing the audio processing pipeline:
+- **[telegram_bot.py](src/telegram_bot.py)** — Bot entry point and routing
+- **[speech_to_speech.py](src/speech_to_speech.py)** — Voice/text translation (WhisperX, Translate, XTTS)
+- **[voice_transformer.py](src/voice_transformer.py)** — Speed/age/gender voice effects
+- **[latiniser.py](src/latiniser.py)** — Latin script conversion for non-Latin languages
 
-- **[asr.py](src/asr.py)** — Automatic Speech Recognition integration using Whisper for phoneme/word alignment and transcription
-- **[denoiser.py](src/denoiser.py)** — Audio denoising module (RNNoise or torchaudio-based noise suppression)
-- **[voice_transformer.py](src/voice_transformer.py)** — WORLD vocoder-based voice transformation for gender/age modification and STFT-based formant shifting with vowel-specific adjustments
-- **[speech_to_speech.py](src/speech_to_speech.py)** — Multilingual speech-to-speech translation with voice cloning using WhisperX, Google Translate, and XTTS v2
-- **[input_streamer.py](src/input_streamer.py)** — Real-time audio input handling with chunking, buffering, and overlap management
-- **[overlap_add.py](src/overlap_add.py)** — Overlap-add reconstruction for seamless audio stitching with crossfade handling
-- **[telegram_bot.py](src/telegram_bot.py)** — Main Telegram bot orchestrator with command routing and state management
-- **[latiniser.py](src/latiniser.py)** — Latin script conversion for non-Latin languages for preview rendering
+#### Telegram Bot (`src/telegram_bot/`)
 
-#### Learning Module (`src/learning/`)
+- **[handlers.py](src/telegram_bot/handlers.py)** — Commands and message handlers (translate, dictionary)
+- **[callbacks.py](src/telegram_bot/callbacks.py)** — Button callbacks (language, word forms, pronunciation, etc.)
+- **[keyboards.py](src/telegram_bot/keyboards.py)** — Inline keyboard layouts
+- **[config.py](src/telegram_bot/config.py)** — Languages and bot config
 
-User progress tracking and analytics:
+#### Dictionary (`src/dictionary/`)
 
-- **[storage.py](src/learning/storage.py)** — SQLite database interface for persisting learning events and statistics
-- **[events.py](src/learning/events.py)** — Event data models (vocabulary, pronunciation, translation events)
-- **[aggregations.py](src/learning/aggregations.py)** — Compute user statistics (word frequency, accuracy scores, streaks, trends)
+- **[wiktionary_client.py](src/dictionary/wiktionary_client.py)** — Definitions, etymology, examples, word-forms keyboard
+- **[corpus_examples.py](src/dictionary/corpus_examples.py)** — Sentence examples
+- **[cefr.py](src/dictionary/cefr.py)** — CEFR difficulty / Smart Synonyms
+- **[word_forms_extractor.py](src/dictionary/word_forms_extractor.py)** — Conjugations and word forms
 
-#### Dictionary Module (`src/dictionary/`)
+#### Learning (`src/learning/`)
 
-Vocabulary and definition support:
+- **[storage.py](src/learning/storage.py)** — SQLite for learning events
+- **[events.py](src/learning/events.py)** — Event models
+- **[aggregations.py](src/learning/aggregations.py)** — Stats and trends
 
-- **[wiktionary_client.py](src/dictionary/wiktionary_client.py)** — Wiktionary API client for definitions, etymology, and examples
-- **[corpus_examples.py](src/dictionary/corpus_examples.py)** — Sentence-level example retrieval
-- **[cefr.py](src/dictionary/cefr.py)** — CEFR difficulty classification for words
+#### ML (`src/ml/`)
 
-#### Telegram Bot Module (`src/telegram_bot/`)
-
-Bot-specific handlers and utilities:
-
-- **[handlers.py](src/telegram_bot/handlers.py)** — Core command handlers (translate, dictionary, stats)
-- **[callbacks.py](src/telegram_bot/callbacks.py)** — Button callbacks for UI interactions
-- **[keyboards.py](src/telegram_bot/keyboards.py)** — Keyboard layouts and button definitions
-- **[utils.py](src/telegram_bot/utils.py)** — Utility functions for bot operations
-- **[config.py](src/telegram_bot/config.py)** — Bot configuration and settings
-
-#### ML Module (`src/ml/`)
-
-Machine learning powered features:
-
-- **[pronunciation_scorer.py](src/ml/pronunciation_scorer.py)** — Wav2Vec2-based pronunciation evaluation using MFCC features and DTW alignment
+- **[pronunciation_score.py](src/ml/pronunciation_score.py)** — Wav2Vec2-based pronunciation scoring
 
 ### Tests (`tests/`)
 
-Comprehensive test suite with pytest:
+pytest suite for ASR, denoiser, formant shifting, phonemize, streamer, voice_transformer, speech_to_speech.
 
-- **[test_asr.py](tests/test_asr.py)** — Unit tests for ASR module (phoneme extraction, timing accuracy)
-- **[test_denoiser.py](tests/test_denoiser.py)** — Tests for denoising module (SNR metrics, audio quality)
-- **[test_formant_shifting.py](tests/test_formant_shifting.py)** — Tests for formant modification DSP (frequency response, artifact detection)
-- **[test_phonemise.py](tests/test_phonemise.py)** — Tests for phoneme-level processing and alignment
-- **[test_streamer.py](tests/test_streamer.py)** — Tests for input streaming (jitter handling, buffering, chunking)
-- **[test_voice_transformer.py](tests/test_voice_transformer.py)** — Tests for voice transformation (gender/age modification, formant warping using WORLD vocoder)
-- **[test_speech_to_speech.py](tests/test_speech_to_speech.py)** — Tests for multilingual speech-to-speech translation with voice cloning
+### Demo
 
-### Demo (`demo/`)
+- **Pipeline demo** — Optional: `python legacy/demo/demo.py` (file or mic → processing → playback), if that script is present.
 
-- **[demo.py](demo.py)** — Demo script showcasing end-to-end pipeline usage (file or mic input, output playback)
+## Running the Bot
 
-### Telegram Bot
+1. Add `TELEGRAM_BOT_TOKEN=...` to a `.env` file at the project root (or set the env var).
+2. Start the bot:
+   ```bash
+   python src/telegram_bot.py
+   ```
+   or
+   ```bash
+   python -m src.telegram_bot
+   ```
 
-A friendly Telegram bot for multilingual speech-to-speech translation and dictionary lookups.
+Notes: WhisperX and XTTS are lazy-loaded (first use may be slower). You need network access for Wiktionary and translation APIs.
 
-- Core flow: voice note → WhisperX transcription → Google Translate → XTTS v2 voice-cloned synthesis
-- Features:
-  - **Translation**: Language picker and `/translate [lang_code]` command
-  - **Conversational modes**: "Reply in X" button to flip source/target for natural dialogue flows
-  - **Audio control**: Speed presets (0.5x / 1x / 2x) and on-the-fly speed adjustment via UI
-  - **Dictionary lookups**: Formatted definitions, etymology, and examples from Wiktionary
-  - **Language support**: Non-Latin scripts display latinised preview for easier reading
-  - **Learning Analytics**: Word statistics, pronunciation score history, and learning progress tracking
-  - **Pronunciation Feedback**: Integrated ML scorer provides phoneme-level accuracy scoring and suggestions
-- Run the bot:
-  1. Add `TELEGRAM_BOT_TOKEN=...` to a `.env` file at the project root (or set the env var)
-  2. Start the bot: `python src/telegram_bot.py` or `python -m src.telegram_bot`
-- Notes:
-  - Large models (WhisperX / XTTS) are lazy-loaded; expect initial latency on first use
-  - Ensure a current `TELEGRAM_BOT_TOKEN` and network access for Wiktionary and translation APIs
+## Getting Started (development)
 
-### Audio Data (`audio_files/`)
-
-Directory structure for managing audio input/output:
-
-- **`input/`** — Input audio files for processing
-  - **`temp_file_asr/`** — Temporary files for ASR processing
-- **`output/`** — Final processed audio output
-- **`spectrograms/`** — Spectrogram visualizations and analysis plots
-- **`temp/`** — General temporary processing files
-
-## Learning Analytics System
-
-The bot includes a comprehensive learning tracking system to monitor user progress:
-
-- **Event Storage**: Persistent SQLite database (`data/learning_events.db`) for recording vocabulary and pronunciation events
-- **Statistics & Aggregation** - Computes user metrics:
-  - Total words learned and reviewed
-  - Pronunciation accuracy scores per word
-  - Learning streaks and consistency tracking
-  - Vocabulary acquisition rate over time
-- **Progress Display** - User-friendly `/stats` command to view:
-  - Learning dashboard with cumulative statistics
-  - Top difficult words and pronunciation problem areas
-  - Weekly/monthly progress trends
-- **Integration**: Seamlessly integrated with Telegram bot for inline progress updates
-
-## ML Pronunciation Scorer
-
-This bot includes a **machine learning pronunciation scorer** that evaluates 
-user pronunciation using:
-
-- **Audio Feature Extraction**: 13 Mel-frequency cepstral coefficients (MFCCs)
-- **Deep Learning**: Facebook's Wav2Vec2 model for phoneme recognition
-- **Alignment**: Dynamic Time Warping (DTW) for sequence alignment
-- **Evaluation**: Combined acoustic + recognition scoring
-
-### Technical Details
-
-**Model Architecture:**
-- Pre-trained Wav2Vec2-Base-960h (transformer-based)
-- 95M parameters
-- Fine-tuned on LibriSpeech dataset
-
-**Features:**
-- 16kHz audio sampling
-- 13 MFCC coefficients
-- Frame length: 25ms
-- Hop length: 10ms
-
-**Metrics:**
-- DTW Distance (acoustic similarity)
-- Phoneme Accuracy (speech recognition)
-- Overall Score (weighted combination)
-
-**Performance:**
-- Model load time: ~10 seconds (first time)
-- Inference time: ~5 seconds per word
-- Accuracy: ~85% correlation with human ratings (estimated)
-
-### Example Usage
-
-\`\`\`python
-from src.ml.pronunciation_scorer import score_user_pronunciation
-
-# Score user's pronunciation
-result = score_user_pronunciation(user_audio_bytes, "hello")
-
-print(f"Score: {result['overall_score']}/100")
-print(f"Feedback: {result['feedback']}")
-\`\`\`
-
-## Dependencies
-
-Key Python packages (see [requirements.txt](requirements.txt)):
-
-- **Audio I/O**: soundfile, sounddevice
-- **DSP**: numpy, scipy, librosa, resampy, pyworld
-- **ASR**: whisperx (WhisperX)
-- **TTS / Voice Cloning**: TTS (Coqui XTTS v2)
-- **Translation**: deep_translator (GoogleTranslator)
-- **Bot & Config**: python-telegram-bot, python-dotenv
-- **Dictionary / Parsing**: mwparserfromhell, requests
-- **Phonemization**: phonemizer
-- **ML Runtime**: onnxruntime
-- **Testing**: pytest, psutil
-
-## Getting Started
-
-1. **Install dependencies:**
+1. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Run tests:**
+2. **Run tests**
    ```bash
    pytest tests/
    ```
 
-3. **Run the demo:**
+3. **Run the demo** (optional, if present)
    ```bash
-   python demo/demo.py
+   python legacy/demo/demo.py
    ```
 
-## Architecture
+## Dependencies
 
-The pipeline follows a modular, streaming-first design:
+Key packages: **python-telegram-bot**, **python-dotenv**, **whisperx**, **TTS** (XTTS), **deep_translator**, **mwparserfromhell**, **gtts**, **soundfile**, **librosa**, **torch**, **onnxruntime** (pronunciation scorer). See [requirements.txt](requirements.txt).
 
-1. **Input Streaming** → Chunks and buffers audio from file or microphone
-2. **Denoising** → Suppresses background noise while preserving speech
-3. **ASR Alignment** → Extracts phoneme-level timing for precision modification
-4. **Accent Softening** → Applies formant, pitch, and energy adjustments via DSP
-5. **Overlap-Add Reconstruction** → Stitches chunks with minimal artifacts
+## Learning Analytics
+
+- Events stored in `data/learning_events.db`.
+- Aggregations: words learned/reviewed, pronunciation scores, streaks, trends.
+- `/stats`: dashboard, difficult words, weekly/monthly progress.
+
+## ML Pronunciation Scorer
+
+- **Wav2Vec2** for phoneme recognition, **DTW** for alignment, **MFCC** features.
+- Used by the “Practice Pronunciation” flow in the bot.
+- Example:
+  ```python
+  from src.ml.pronunciation_score import score_user_pronunciation
+  result = score_user_pronunciation(user_audio_bytes, "hello")
+  print(result['overall_score'], result['feedback'])
+  ```

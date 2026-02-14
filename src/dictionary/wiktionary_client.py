@@ -9,6 +9,7 @@ from gtts import gTTS
 import io
 from src.dictionary.corpus_examples import fetch_corpus_examples
 from src.telegram_bot.config import WIKTIONARY_LANGUAGES
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 WIKTIONARY_API_EN = "https://en.wiktionary.org/w/api.php"
 
@@ -587,5 +588,5 @@ if __name__ == "__main__":
     print("Testing Wiktionary client...\n")
     for w in ["dog", "run", "cat"]:
         print("=" * 60)
-        print(format_for_telegram(w))
+        print(format_for_telegram_with_buttons(w))
         print()
