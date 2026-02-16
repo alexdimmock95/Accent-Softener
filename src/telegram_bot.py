@@ -47,7 +47,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-
-    #TODO: dictionary result not parsing correctly or formatting
-    #TODO: forms button not showing up after a word has been input into dictionary function
-    #TODO: ensure readme and changelog are actually talking relevant shit about the project
+#TODO: see word form extractor for english conjugations. being parsed weirdly. 

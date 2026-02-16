@@ -18,7 +18,11 @@ from src.telegram_bot.config import LANGUAGES, WIKTIONARY_LANGUAGES  # ← Add W
 from src.telegram_bot.utils import change_speed
 from src.speech_to_speech import SpeechToSpeechTranslator
 from src.voice_transformer import VoiceTransformer
-from src.dictionary.wiktionary_client import format_for_telegram_with_buttons, format_etymology_for_telegram
+from src.dictionary.wiktionary_client import (
+    format_for_telegram_with_buttons,
+    format_etymology_for_telegram,
+    _escape_telegram_markdown,
+)
 from src.latiniser import latinise, NON_LATIN_LANGS
 from src.ml.pronunciation_score import score_user_pronunciation
 from src.learning.events import emit_word_event
@@ -229,7 +233,9 @@ async def handle_voice_translation(update: Update, context: ContextTypes.DEFAULT
         await update.message.reply_voice(
             voice=open(output_path, 'rb'),
             reply_markup=post_translate_keyboard(
-                last_detected_lang=detected_lang_code
+                last_detected_lang=detected_lang_code,
+                translated_word=translated_text,
+                target_lang=target_lang
             )
         )
 
@@ -341,34 +347,43 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["awaiting_dictionary_word"] = False
         context.user_data["last_dictionary_word"] = word
 
-        # Get the user's target language or default to English
+        # Get the user's target language - this is what they're learning!
         target_lang = context.user_data.get('target_lang', 'en')
         
-        # Map to Wiktionary language name
-        language = WIKTIONARY_LANGUAGES.get(target_lang, 'English')
+        # When they type a word in the dictionary, it's IN the target language
+        # Learning French + type "courir" = look up French word "courir"
+        language_code = target_lang
+        language = WIKTIONARY_LANGUAGES.get(language_code, 'English')
 
         # Log the word search event
         user_id = update.effective_user.id
         emit_word_event(user_id, word, "dictionary")
 
-        formatted_text, word_forms_kb = format_for_telegram_with_buttons(
-            word,
+        formatted_text, _ = format_for_telegram_with_buttons(
+            word, 
             language=language,
-            language_code=target_lang,
+            language_code=language_code,
             max_defs_per_pos=5
         )
 
-        main_kb = dictionary_result_keyboard(word, language_code=target_lang)
-        if word_forms_kb and word_forms_kb.inline_keyboard:
-            combined_rows = word_forms_kb.inline_keyboard + main_kb.inline_keyboard
-            reply_markup = InlineKeyboardMarkup(combined_rows)
+        # Get the keyboard separately
+        from src.dictionary.wiktionary_client import fetch_definitions, create_word_forms_keyboard
+        result = fetch_definitions(word, language=language, language_code=language_code)
+        forms_keyboard = create_word_forms_keyboard(word, result.get("entries", []), language_code)
+
+        # Combine keyboards
+        main_keyboard = dictionary_result_keyboard(word, language_code=language_code)
+        if forms_keyboard:
+            # Combine the form buttons with the main keyboard
+            combined_buttons = forms_keyboard.inline_keyboard + main_keyboard.inline_keyboard
+            final_keyboard = InlineKeyboardMarkup(combined_buttons)
         else:
-            reply_markup = main_kb
+            final_keyboard = main_keyboard
 
         await update.message.reply_text(
-            formatted_text,
+            formatted_text, 
             parse_mode="Markdown",
-            reply_markup=reply_markup,
+            reply_markup=final_keyboard,
             reply_to_message_id=update.message.message_id
         )
     else:
@@ -391,18 +406,13 @@ async def handle_text_translation(update: Update, context: ContextTypes.DEFAULT_
 
     try:
         # --- Detect input language ---
-        from langdetect import detect_langs
-        try:
-            detected_langs = detect_langs(input_text)
-            detected_lang_code = detected_langs[0].lang if detected_langs else 'en'
-            # Map langdetect codes to our codes (e.g., 'zh-cn' -> 'zh-CN')
-            if detected_lang_code == 'zh-cn':
-                detected_lang_code = 'zh-CN'
-            elif detected_lang_code == 'zh-tw':
-                detected_lang_code = 'zh-TW'
-        except:
-            detected_lang_code = 'en'  # Fallback to English
-        
+        # Instead of using langdetect, just use the translator's detection
+        detected_lang_code = translator.detect_language(input_text)
+
+        # If detection fails, assume English
+        if not detected_lang_code:
+            detected_lang_code = 'en'
+
         detected_lang_name = LANGUAGES.get(detected_lang_code, detected_lang_code)
 
         # --- Translate ---
@@ -464,7 +474,9 @@ async def handle_text_translation(update: Update, context: ContextTypes.DEFAULT_
         await update.message.reply_voice(
             voice=open(output_path, 'rb'),
             reply_markup=post_translate_keyboard(
-                last_detected_lang=detected_lang_code
+                last_detected_lang=detected_lang_code,
+                translated_word=translated_text,
+                target_lang=target_lang
             )
         )
 

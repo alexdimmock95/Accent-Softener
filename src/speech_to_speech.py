@@ -111,6 +111,47 @@ class SpeechToSpeechTranslator:
 
         return translator.translate(text)
     
+    def detect_language(self, text):
+        """
+        Detect the language of the input text using Google Translate's detection API.
+        
+        Args:
+            text: Text to detect language for
+            
+        Returns:
+            str: Language code (e.g., 'en', 'fr', 'es') or None if detection fails
+        """
+        if not text or not text.strip():
+            return None
+        
+        try:
+            from googletrans import Translator
+            translator = Translator()
+            detected = translator.detect(text)
+            lang_code = detected.lang.lower()
+            
+            # Map Google Translate codes to our language codes
+            if lang_code == 'zh-cn':
+                lang_code = 'zh-CN'
+            elif lang_code == 'zh-tw':
+                lang_code = 'zh-TW'
+            
+            return lang_code
+        except Exception as e:
+            print(f"DEBUG: Google Translate language detection error: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def get_source_language(self):
+        """
+        Get the detected source language from the last transcription.
+        
+        Returns:
+            str: Language code or 'en' as default
+        """
+        return self.source_language if self.source_language else "en"
+    
     def synthesize(self, text, speaker_wav, language="fr"):
         """
         Synthesize speech with voice cloning.

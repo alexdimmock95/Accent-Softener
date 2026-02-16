@@ -14,7 +14,7 @@ from src.telegram_bot.keyboards import (
     post_translate_keyboard,
     speed_keyboard
 )
-from src.telegram_bot.config import LANGUAGES, LANGUAGES_BY_FAMILY
+from src.telegram_bot.config import LANGUAGES, LANGUAGES_BY_FAMILY, WIKTIONARY_LANGUAGES
 from src.ml.pronunciation_score import PronunciationScore
 from src.learning.events import emit_word_event
 from src.learning.aggregations import get_top_words, get_total_words_searched, get_total_searches
@@ -56,27 +56,29 @@ async def handle_word_forms_callback(update: Update, context: ContextTypes.DEFAU
     forms = get_word_forms(word, pos, language_code)
     
     if not forms:
-        # No forms found - send a friendly message
+        back_btn = InlineKeyboardButton("⬅️ Back to Definition", callback_data=f"back_def_{word}")
         await query.edit_message_text(
             f"❌ No {pos.lower()} forms found for '*{word}*'.\n\n"
             f"This might mean:\n"
-            f"• The word doesn't have irregular forms\n"
-            f"• Forms for this language aren't available yet\n"
-            f"• The conjugation library needs to be installed",
-            parse_mode='Markdown'
+            f"• The word doesn't have irregular forms in our database\n"
+            f"• Conjugation is only supported for: en, es, fr, it, pt, ro\n"
+            f"• If you expected results, try: `pip install mlconjug3`",
+            parse_mode='Markdown',
+            reply_markup=InlineKeyboardMarkup([[back_btn]])
         )
         return
     
     # Format the forms for display
     formatted_forms = format_word_forms_for_telegram(forms, pos)
     
-    # Send the formatted forms
-    # We'll edit the original message to show the forms
     message_text = f"📖 *{word.upper()}*\n\n{formatted_forms}"
-    
+    back_button = InlineKeyboardButton("⬅️ Back to Definition", callback_data=f"back_def_{word}")
+    keyboard = InlineKeyboardMarkup([[back_button]])
+
     await query.edit_message_text(
         message_text,
-        parse_mode='Markdown'
+        parse_mode='Markdown',
+        reply_markup=keyboard
     )
 
 
@@ -172,13 +174,21 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("back_def_"):
         word = data.replace("back_def_", "")
         await handle_back_to_definition(update, context, word)
+    elif data.startswith("dict_lookup_"):
+        # Format: dict_lookup_{word}|{target_lang}
+        remaining = data.replace("dict_lookup_", "")
+        if "|" in remaining:
+            word, target_lang = remaining.split("|", 1)
+            await handle_direct_dictionary_lookup(update, context, word, target_lang)
+        else:
+            await query.answer("❌ Invalid dictionary lookup.")
     elif data == "open_dictionary":
         await handle_open_dictionary(update, context)
     elif data == "word_stats":
         await handle_word_stats(update, context)
 
     # Route to word forms handler if the callback starts with "forms|"
-    elif callback_data.startswith("forms|"):
+    elif data.startswith("forms|"):
         await handle_word_forms_callback(update, context)
     
     # Navigation
@@ -307,6 +317,35 @@ async def handle_practice_mode(update: Update, context: ContextTypes.DEFAULT_TYP
         f"• Dynamic Time Warping\n\n"
         f"Ready? Press the microphone button 🎤 and say the word!"
     )
+
+
+async def handle_direct_dictionary_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE, word: str, target_lang: str):
+    """Directly look up a word in the dictionary for a specific language."""
+    query = update.callback_query
+    await query.answer()
+    
+    from src.dictionary.wiktionary_client import format_for_telegram_with_buttons
+    language = WIKTIONARY_LANGUAGES.get(target_lang, 'English')
+    
+    # Log the word search event
+    user_id = update.effective_user.id
+    emit_word_event(user_id, word, "dictionary")
+    
+    formatted_text, word_forms_kb = format_for_telegram_with_buttons(
+        word,
+        language=language,
+        language_code=target_lang,
+        max_defs_per_pos=5
+    )
+    
+    main_kb = dictionary_result_keyboard(word, language_code=target_lang)
+    if word_forms_kb and word_forms_kb.inline_keyboard:
+        combined_rows = word_forms_kb.inline_keyboard + main_kb.inline_keyboard
+        reply_markup = InlineKeyboardMarkup(combined_rows)
+    else:
+        reply_markup = main_kb
+    
+    await safe_message_update(query, formatted_text, reply_markup=reply_markup)
 
 
 async def handle_back_to_definition(update: Update, context: ContextTypes.DEFAULT_TYPE, word: str):

@@ -36,19 +36,42 @@ def build_language_keyboard(buttons_per_row=2):
     
     return InlineKeyboardMarkup(keyboard)
 
-def post_translate_keyboard(last_detected_lang):
+def post_translate_keyboard(last_detected_lang, translated_word=None, target_lang=None):
     """
     Keyboard shown after translation with options to reply in another language.
     
     Args:
         last_detected_lang: Language code for next translation target (e.g., 'en', 'fr')
+        translated_word: Optional translated word to add dictionary button if single word
+        target_lang: Optional target language code for dictionary lookup
     """
     lang_label = LANGUAGES.get(last_detected_lang, last_detected_lang)
     # Extract just the language name without the extra text for clarity
     # e.g., "🇬🇧 English" or "🇷🇺 Русский (Russkij)" -> keep as is but cleaner
     lang_name_only = lang_label.split("(")[0].strip()  # Remove parenthetical content if any
     
-    return InlineKeyboardMarkup([
+    keyboard = []
+    
+    # Add dictionary button if translated_word is a single word
+    if translated_word and target_lang:
+        # Check if it's a single word (no spaces, allow hyphens/apostrophes for compound words)
+        cleaned_word = translated_word.strip()
+        # Remove common punctuation but keep hyphens and apostrophes
+        word_only = ''.join(c for c in cleaned_word if c.isalnum() or c in "-'")
+        # Check if it's a single word (no spaces, reasonable length)
+        # Telegram callback_data limit is 64 bytes, so keep it short
+        if word_only and ' ' not in cleaned_word and len(word_only) <= 40:
+            # Use | as separator (unlikely to appear in words)
+            callback_data = f"dict_lookup_{word_only.lower()}|{target_lang}"
+            if len(callback_data) <= 64:  # Telegram limit
+                keyboard.append([
+                    InlineKeyboardButton(
+                        "📖 Dictionary",
+                        callback_data=callback_data
+                    )
+                ])
+    
+    keyboard.extend([
         [
             InlineKeyboardButton(
                 f"🔁 Translate to {lang_label}",
@@ -65,6 +88,8 @@ def post_translate_keyboard(last_detected_lang):
             InlineKeyboardButton("🏠 Home", callback_data="home")
         ]
     ])
+    
+    return InlineKeyboardMarkup(keyboard)
 
 def speed_keyboard():
     """Speed adjustment submenu (0.5x / 1x / 2x) with a back arrow."""

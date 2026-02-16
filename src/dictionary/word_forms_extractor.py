@@ -75,9 +75,16 @@ def get_verb_conjugations(verb: str, language_code: str = 'en') -> Optional[Dict
         return None
     
     try:
-        # Conjugate the verb
-        conjugation = conjugator.conjugate(verb)
-        
+        # Conjugate the verb (may return Verb, list of Verb, or None)
+        raw = conjugator.conjugate(verb)
+        if raw is None:
+            print(f"DEBUG: conjugate('{verb}') returned None")
+            return None
+        conjugation = raw[0] if isinstance(raw, (list, tuple)) else raw
+        if not hasattr(conjugation, 'iterate') and not hasattr(conjugation, 'conjug_info'):
+            print(f"DEBUG: conjugate returned object without iterate/conjug_info: {type(conjugation)}")
+            return None
+
         # Extract the most useful forms depending on language
         if language_code == 'en':
             return _extract_english_verb_forms(conjugation, verb)
@@ -86,125 +93,476 @@ def get_verb_conjugations(verb: str, language_code: str = 'en') -> Optional[Dict
         elif language_code == 'fr':
             return _extract_french_verb_forms(conjugation, verb)
         else:
-            # Generic extraction for other languages
             return _extract_generic_verb_forms(conjugation, verb)
-            
     except Exception as e:
         print(f"DEBUG: Error conjugating '{verb}': {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
-
 def _extract_english_verb_forms(conjugation, verb: str) -> Dict[str, str]:
-    """Extract key English verb forms from mlconjug3 conjugation object."""
+    """Extract ALL English verb forms - complete conjugation table."""
     forms = {'infinitive': verb}
-    
+
     try:
-        # Present tense - 3rd person singular
-        if hasattr(conjugation, 'iterate'):
-            for mood, tense, person, conj_form in conjugation.iterate():
-                if mood == 'indicative' and tense == 'present':
-                    if person == '3s':  # 3rd person singular
-                        forms['present_3sg'] = conj_form
-                elif mood == 'indicative' and tense == 'present participle':
-                    forms['present_participle'] = conj_form
-                elif mood == 'indicative' and tense == 'past':
-                    if person == '1s':  # All persons same in English past
-                        forms['past'] = conj_form
-                elif mood == 'indicative' and tense == 'past participle':
-                    forms['past_participle'] = conj_form
-    except:
-        # Fallback: try to access conjugation as dict
-        try:
-            conj_dict = dict(conjugation)
-            if 'indicative' in conj_dict:
-                ind = conj_dict['indicative']
-                if 'present' in ind and '3s' in ind['present']:
-                    forms['present_3sg'] = ind['present']['3s']
-                if 'present participle' in ind:
-                    forms['present_participle'] = list(ind['present participle'].values())[0]
-                if 'past' in ind and '1s' in ind['past']:
-                    forms['past'] = ind['past']['1s']
-                if 'past participle' in ind:
-                    forms['past_participle'] = list(ind['past participle'].values())[0]
-        except:
-            pass
+        for item in conjugation.iterate():
+            # Handle variable-length tuples (infinitive has 3, others have 4)
+            if len(item) == 4:
+                mood, tense, person, conj_form = item
+            elif len(item) == 3:
+                # Skip infinitive row (already have it)
+                continue
+            else:
+                continue
+            
+            m, t = (mood or '').lower(), (tense or '').lower()
+            
+            # Present tense
+            if 'indicative' in m and 'present' in t:
+                if person == 'I':
+                    forms['present_I'] = conj_form
+                elif person == 'you':
+                    forms['present_you'] = conj_form
+                elif person == 'he/she/it':
+                    forms['present_he/she/it'] = conj_form
+                elif person == 'we':
+                    forms['present_we'] = conj_form
+                elif person == 'they':
+                    forms['present_they'] = conj_form
+            
+            # Past tense
+            elif 'indicative' in m and 'past tense' in t:
+                if person == 'I':
+                    forms['past_I'] = conj_form
+                elif person == 'you':
+                    forms['past_you'] = conj_form
+                elif person == 'he/she/it':
+                    forms['past_he/she/it'] = conj_form
+                elif person == 'we':
+                    forms['past_we'] = conj_form
+                elif person == 'they':
+                    forms['past_they'] = conj_form
+            
+            # Future
+            elif 'indicative' in m and 'future' in t:
+                if person == 'I':
+                    forms['future_I'] = conj_form
+                elif person == 'he/she/it':
+                    forms['future_he/she/it'] = conj_form
+                elif person == 'we':
+                    forms['future_we'] = conj_form
+            
+            # Participles
+            elif 'present participle' in t:
+                forms['present_participle'] = conj_form
+            elif 'past participle' in t:
+                forms['past_participle'] = conj_form
+                
+    except Exception as e:
+        print(f"DEBUG: Error extracting English forms: {e}")
     
     return forms if len(forms) > 1 else None
 
 
 def _extract_spanish_verb_forms(conjugation, verb: str) -> Dict[str, str]:
-    """Extract key Spanish verb forms."""
+    """Extract ALL Spanish verb forms."""
     forms = {'infinitive': verb}
-    
+
     try:
-        for mood, tense, person, conj_form in conjugation.iterate():
-            # Present indicative yo/tú/él forms
-            if mood == 'indicativo' and tense == 'presente':
-                if person == '1s':
-                    forms['present_1sg'] = conj_form
-                elif person == '2s':
-                    forms['present_2sg'] = conj_form
-                elif person == '3s':
-                    forms['present_3sg'] = conj_form
-            # Preterite (past)
-            elif mood == 'indicativo' and tense == 'pretérito':
-                if person == '1s':
-                    forms['preterite_1sg'] = conj_form
-            # Gerund
-            elif 'gerundio' in tense.lower():
+        for item in conjugation.iterate():
+            if len(item) == 4:
+                mood, tense, person, conj_form = item
+            elif len(item) == 3:
+                continue  # Skip infinitive
+            else:
+                continue
+            
+            if not conj_form:  # Skip None values
+                continue
+                
+            m, t = (mood or '').lower(), (tense or '').lower()
+            
+            # Present
+            if 'indicativo' in m and 'presente' in t:
+                if person == 'yo':
+                    forms['present_yo'] = conj_form
+                elif person == 'tú':
+                    forms['present_tú'] = conj_form
+                elif 'él' in person or 'ella' in person:
+                    forms['present_él/ella'] = conj_form
+                elif person == 'nosotros':
+                    forms['present_nosotros'] = conj_form
+                elif person == 'vosotros':
+                    forms['present_vosotros'] = conj_form
+                elif person == 'ellos' or person == 'ellas':
+                    forms['present_ellos/ellas'] = conj_form
+            
+            # Preterite
+            elif 'indicativo' in m and 'pretérito' in t and 'imperfecto' not in t:
+                if person == 'yo':
+                    forms['preterite_yo'] = conj_form
+                elif person == 'tú':
+                    forms['preterite_tú'] = conj_form
+                elif 'él' in person:
+                    forms['preterite_él/ella'] = conj_form
+            
+            # Imperfect
+            elif 'indicativo' in m and 'imperfecto' in t:
+                if person == 'yo':
+                    forms['imperfect_yo'] = conj_form
+                elif 'él' in person:
+                    forms['imperfect_él/ella'] = conj_form
+            
+            # Future
+            elif 'indicativo' in m and 'futuro' in t:
+                if person == 'yo':
+                    forms['future_yo'] = conj_form
+                elif 'él' in person:
+                    forms['future_él/ella'] = conj_form
+            
+            # Participles
+            elif 'gerundio' in t.lower():
                 forms['gerund'] = conj_form
-            # Past participle
-            elif 'participio' in tense.lower():
+            elif 'participio' in t.lower():
                 forms['past_participle'] = conj_form
-    except:
-        pass
+                
+    except Exception as e:
+        print(f"DEBUG: Error extracting Spanish forms: {e}")
     
     return forms if len(forms) > 1 else None
-
 
 def _extract_french_verb_forms(conjugation, verb: str) -> Dict[str, str]:
-    """Extract key French verb forms."""
+    """Extract ALL French verb forms with correct person matching."""
     forms = {'infinitive': verb}
-    
+
     try:
-        for mood, tense, person, conj_form in conjugation.iterate():
-            # Present indicative
-            if mood == 'indicatif' and tense == 'présent':
-                if person == '1s':
-                    forms['present_1sg'] = conj_form
-                elif person == '2s':
-                    forms['present_2sg'] = conj_form
-                elif person == '3s':
-                    forms['present_3sg'] = conj_form
-            # Passé composé (need auxiliary + past participle)
-            elif 'participe passé' in tense.lower():
-                forms['past_participle'] = conj_form
-            # Imparfait
-            elif mood == 'indicatif' and 'imparfait' in tense.lower():
-                if person == '1s':
-                    forms['imperfect_1sg'] = conj_form
-    except:
-        pass
+        for item in conjugation.iterate():
+            if len(item) == 4:
+                mood, tense, person, conj_form = item
+            elif len(item) == 3:
+                continue  # Skip infinitive row
+            else:
+                continue
+            
+            m = (mood or '').lower()
+            t = (tense or '').lower()
+            p = (person or '').lower()  # Keep lowercase
+            
+            # Present
+            if 'indicatif' in m and 'présent' in t:
+                if p == 'je':
+                    forms['present_je'] = conj_form
+                elif p == 'tu':
+                    forms['present_tu'] = conj_form
+                elif 'il (' in p or p == 'il':  # Matches "il (elle, on)" but NOT "ils"
+                    forms['present_il/elle'] = conj_form
+                elif p == 'nous':
+                    forms['present_nous'] = conj_form
+                elif p == 'vous':
+                    forms['present_vous'] = conj_form
+                elif 'ils (' in p or p == 'ils':  # Matches "ils (elles)"
+                    forms['present_ils/elles'] = conj_form
+            
+            # Imperfect
+            elif 'indicatif' in m and 'imparfait' in t:
+                if p == 'je':
+                    forms['imperfect_je'] = conj_form
+                elif p == 'tu':
+                    forms['imperfect_tu'] = conj_form
+                elif 'il (' in p or p == 'il':
+                    forms['imperfect_il/elle'] = conj_form
+                elif p == 'nous':
+                    forms['imperfect_nous'] = conj_form
+                elif p == 'vous':
+                    forms['imperfect_vous'] = conj_form
+                elif 'ils (' in p or p == 'ils':
+                    forms['imperfect_ils/elles'] = conj_form
+            
+            # Future
+            elif 'indicatif' in m and 'futur' in t:
+                if p == 'je':
+                    forms['future_je'] = conj_form
+                elif p == 'tu':
+                    forms['future_tu'] = conj_form
+                elif 'il (' in p or p == 'il':
+                    forms['future_il/elle'] = conj_form
+                elif p == 'nous':
+                    forms['future_nous'] = conj_form
+                elif p == 'vous':
+                    forms['future_vous'] = conj_form
+                elif 'ils (' in p or p == 'ils':
+                    forms['future_ils/elles'] = conj_form
+            
+            # Passé simple
+            elif 'indicatif' in m and 'passé simple' in t:
+                if p == 'je':
+                    forms['passe_simple_je'] = conj_form
+                elif 'il (' in p or p == 'il':
+                    forms['passe_simple_il/elle'] = conj_form
+                elif 'ils (' in p or p == 'ils':
+                    forms['passe_simple_ils/elles'] = conj_form
+            
+            # Conditional
+            elif 'conditionnel' in m:
+                if p == 'je':
+                    forms['conditional_je'] = conj_form
+                elif 'il (' in p or p == 'il':
+                    forms['conditional_il/elle'] = conj_form
+            
+            # Subjunctive
+            elif 'subjonctif' in m and 'présent' in t:
+                if p == 'je':
+                    forms['subjunctive_je'] = conj_form
+                elif 'il (' in p or p == 'il':
+                    forms['subjunctive_il/elle'] = conj_form
+            
+            # Participles
+            elif 'participe' in t:
+                if 'passé' in t:
+                    forms['past_participle'] = conj_form
+                elif 'présent' in t:
+                    forms['present_participle'] = conj_form
+                    
+    except Exception as e:
+        print(f"DEBUG: Error extracting French forms: {e}")
+        import traceback
+        traceback.print_exc()
     
     return forms if len(forms) > 1 else None
+
+def _extract_italian_verb_forms(conjugation, verb: str) -> Dict[str, str]:
+    """Extract ALL Italian verb forms."""
+    forms = {'infinitive': verb}
+
+    try:
+        for item in conjugation.iterate():
+            if len(item) == 4:
+                mood, tense, person, conj_form = item
+            elif len(item) == 3:
+                continue
+            else:
+                continue
+            
+            m, t = (mood or '').lower(), (tense or '').lower()
+            
+            # Present
+            if 'indicativo' in m and 'presente' in t:
+                if person == 'io':
+                    forms['present_io'] = conj_form
+                elif person == 'tu':
+                    forms['present_tu'] = conj_form
+                elif 'egli' in person or 'ella' in person:
+                    forms['present_lui/lei'] = conj_form
+                elif person == 'noi':
+                    forms['present_noi'] = conj_form
+                elif person == 'voi':
+                    forms['present_voi'] = conj_form
+                elif 'essi' in person or 'esse' in person:
+                    forms['present_loro'] = conj_form
+            
+            # Imperfect
+            elif 'indicativo' in m and 'imperfetto' in t:
+                if person == 'io':
+                    forms['imperfect_io'] = conj_form
+                elif 'egli' in person:
+                    forms['imperfect_lui/lei'] = conj_form
+            
+            # Future
+            elif 'indicativo' in m and 'futuro' in t:
+                if person == 'io':
+                    forms['future_io'] = conj_form
+                elif 'egli' in person:
+                    forms['future_lui/lei'] = conj_form
+            
+            # Participles
+            elif 'participio' in t or 'gerundio' in t:
+                if 'passato' in t:
+                    forms['past_participle'] = conj_form
+                elif 'gerundio' in t:
+                    forms['gerund'] = conj_form
+                    
+    except Exception as e:
+        print(f"DEBUG: Error extracting Italian forms: {e}")
+    
+    return forms if len(forms) > 1 else None
+
+
+def _extract_portuguese_verb_forms(conjugation, verb: str) -> Dict[str, str]:
+    """Extract ALL Portuguese verb forms."""
+    forms = {'infinitive': verb}
+
+    try:
+        for item in conjugation.iterate():
+            if len(item) == 4:
+                mood, tense, person, conj_form = item
+            elif len(item) == 3:
+                continue
+            else:
+                continue
+            
+            m, t = (mood or '').lower(), (tense or '').lower()
+            
+            # Present
+            if 'indicativo' in m and 'presente' in t:
+                if person == 'eu':
+                    forms['present_eu'] = conj_form
+                elif person == 'tu':
+                    forms['present_tu'] = conj_form
+                elif 'ele' in person or 'ela' in person or 'você' in person:
+                    forms['present_ele/ela'] = conj_form
+                elif person == 'nós':
+                    forms['present_nós'] = conj_form
+                elif 'eles' in person or 'elas' in person or 'vocês' in person:
+                    forms['present_eles/elas'] = conj_form
+            
+            # Imperfect
+            elif 'indicativo' in m and 'imperfeito' in t:
+                if person == 'eu':
+                    forms['imperfect_eu'] = conj_form
+                elif 'ele' in person:
+                    forms['imperfect_ele/ela'] = conj_form
+            
+            # Preterite
+            elif 'indicativo' in m and 'pretérito' in t:
+                if person == 'eu':
+                    forms['preterite_eu'] = conj_form
+                elif 'ele' in person:
+                    forms['preterite_ele/ela'] = conj_form
+            
+            # Future
+            elif 'indicativo' in m and 'futuro' in t:
+                if person == 'eu':
+                    forms['future_eu'] = conj_form
+                elif 'ele' in person:
+                    forms['future_ele/ela'] = conj_form
+            
+            # Participles
+            elif 'particípio' in t or 'gerúndio' in t:
+                if 'particípio' in t:
+                    forms['past_participle'] = conj_form
+                elif 'gerúndio' in t:
+                    forms['gerund'] = conj_form
+                    
+    except Exception as e:
+        print(f"DEBUG: Error extracting Portuguese forms: {e}")
+    
+    return forms if len(forms) > 1 else None
+
+
+def _extract_romanian_verb_forms(conjugation, verb: str) -> Dict[str, str]:
+    """Extract ALL Romanian verb forms."""
+    forms = {'infinitive': verb}
+
+    try:
+        for item in conjugation.iterate():
+            if len(item) == 4:
+                mood, tense, person, conj_form = item
+            elif len(item) == 3:
+                continue
+            else:
+                continue
+            
+            m, t = (mood or '').lower(), (tense or '').lower()
+            
+            # Present
+            if 'indicativ' in m and 'prezent' in t:
+                if person == 'eu':
+                    forms['present_eu'] = conj_form
+                elif person == 'tu':
+                    forms['present_tu'] = conj_form
+                elif 'el' in person or 'ea' in person:
+                    forms['present_el/ea'] = conj_form
+                elif person == 'noi':
+                    forms['present_noi'] = conj_form
+                elif 'ei' in person or 'ele' in person:
+                    forms['present_ei/ele'] = conj_form
+            
+            # Imperfect
+            elif 'indicativ' in m and 'imperfect' in t:
+                if person == 'eu':
+                    forms['imperfect_eu'] = conj_form
+                elif 'el' in person:
+                    forms['imperfect_el/ea'] = conj_form
+            
+            # Future
+            elif 'indicativ' in m and 'viitor' in t:
+                if person == 'eu':
+                    forms['future_eu'] = conj_form
+                elif 'el' in person:
+                    forms['future_el/ea'] = conj_form
+            
+            # Participles
+            elif 'participiu' in t or 'gerunziu' in t:
+                if 'participiu' in t:
+                    forms['past_participle'] = conj_form
+                elif 'gerunziu' in t:
+                    forms['gerund'] = conj_form
+                    
+    except Exception as e:
+        print(f"DEBUG: Error extracting Romanian forms: {e}")
+    
+    return forms if len(forms) > 1 else None
+
+
+def _extract_from_conjug_info(conjug_info: dict, forms: Dict[str, str], lang: str) -> None:
+    """Fallback: extract forms from conjug_info dict (mood -> tense -> person -> value)."""
+    if not conjug_info:
+        return
+    try:
+        def first_value(d: dict):
+            if not d or not isinstance(d, dict):
+                return None
+            for v in d.values():
+                if isinstance(v, str):
+                    return v
+                if isinstance(v, dict):
+                    return first_value(v)
+            return None
+
+        ind_key = 'Indicative' if lang == 'en' else 'Indicatif' if lang == 'fr' else 'Indicativo'
+        ind = None
+        for k, v in conjug_info.items():
+            if k and v and isinstance(v, dict) and (k.lower() == 'indicative' or k.lower() == 'indicatif' or k.lower() == 'indicativo'):
+                ind = v
+                break
+        if not ind:
+            return
+        for tense_name, form_key in [
+            ('present', 'present_3sg'), ('Present', 'present_3sg'), ('Présent', 'present_1sg'),
+            ('present participle', 'present_participle'), ('Present participle', 'present_participle'),
+            ('past', 'past'), ('Past', 'past'),
+            ('past participle', 'past_participle'), ('Past participle', 'past_participle'),
+            ('Participe passé', 'past_participle'), ('Participio', 'past_participle'),
+        ]:
+            for tkey, tval in ind.items():
+                if tkey and (tkey.lower() == tense_name.lower() or tense_name.lower() in (tkey or '').lower()):
+                    if isinstance(tval, dict):
+                        if '3s' in tval and form_key == 'present_3sg':
+                            forms['present_3sg'] = tval['3s']
+                        elif '1s' in tval and lang == 'fr' and 'present' in (tkey or '').lower():
+                            forms['present_1sg'] = tval['1s']
+                        elif form_key not in forms:
+                            s = next((x for x in (tval.values() if isinstance(tval, dict) else []) if isinstance(x, str)), None)
+                            if s:
+                                forms[form_key] = s
+                    break
+    except Exception:
+        pass
 
 
 def _extract_generic_verb_forms(conjugation, verb: str) -> Dict[str, str]:
     """Generic extraction for languages we don't have specific handling for."""
     forms = {'infinitive': verb}
-    
+
     try:
-        # Just grab first few forms from each tense
-        count = 0
         for mood, tense, person, conj_form in conjugation.iterate():
-            key = f"{tense}_{person}".replace(' ', '_').lower()
-            forms[key] = conj_form
-            count += 1
-            if count >= 10:  # Limit to avoid overwhelming output
+            key = f"{(tense or '')}_{person}".replace(' ', '_').lower()
+            if key and key != 'infinitive':
+                forms[key] = conj_form
+            if len(forms) >= 10:
                 break
-    except:
+    except Exception:
         pass
-    
     return forms if len(forms) > 1 else None
 
 
@@ -354,46 +712,6 @@ def get_word_forms(word: str, pos: str, language_code: str = 'en') -> Optional[D
     
     return None
 
-
-def format_word_forms_for_telegram(forms: Dict[str, List[str]], pos: str) -> str:
-    """
-    Format word forms for display in Telegram.
-    
-    Args:
-        forms: Dictionary of word forms
-        pos: Part of speech
-    
-    Returns:
-        Formatted string for Telegram
-    """
-    if not forms:
-        return "No forms available."
-    
-    lines = [f"*{pos} Forms*\n"]
-    
-    # Define friendly labels for each form type
-    labels = {
-        'third_person_singular': '3rd person singular',
-        'present_participle': 'Present participle',
-        'simple_past': 'Simple past',
-        'past_participle': 'Past participle',
-        'plural': 'Plural',
-        'comparative': 'Comparative',
-        'superlative': 'Superlative'
-    }
-    
-    for form_type, form_values in forms.items():
-        label = labels.get(form_type, form_type.replace('_', ' ').title())
-        values_str = ', '.join(form_values)
-        
-        # Escape markdown
-        values_str = _escape_telegram_markdown(values_str)
-        
-        lines.append(f"• *{label}*: {values_str}")
-    
-    return '\n'.join(lines)
-
-
 def _escape_telegram_markdown(text: str) -> str:
     """Escape special Telegram markdown characters."""
     return (
@@ -407,7 +725,7 @@ def _escape_telegram_markdown(text: str) -> str:
 
 def format_word_forms_for_telegram(forms: Dict[str, str], pos: str) -> str:
     """
-    Format word forms for display in Telegram.
+    Format word forms for display in Telegram - grouped by tense with proper headers.
     
     Args:
         forms: Dictionary of word forms
@@ -421,40 +739,95 @@ def format_word_forms_for_telegram(forms: Dict[str, str], pos: str) -> str:
     
     lines = [f"📝 *{pos} Forms*\n"]
     
-    # Define friendly labels for each form type
-    labels = {
-        # English verb forms
-        'infinitive': 'Infinitive',
-        'present_3sg': '3rd person singular',
-        'present_participle': 'Present participle (-ing)',
-        'past': 'Past tense',
-        'past_participle': 'Past participle',
-        
-        # Spanish verb forms
-        'present_1sg': 'Present (yo)',
-        'present_2sg': 'Present (tú)',
-        'present_3sg': 'Present (él/ella)',
-        'preterite_1sg': 'Preterite (yo)',
-        'gerund': 'Gerund',
-        
-        # French verb forms
-        'imperfect_1sg': 'Imperfect (je)',
-        
-        # Noun forms
-        'plural': 'Plural',
-        
-        # Adjective forms
-        'comparative': 'Comparative',
-        'superlative': 'Superlative'
-    }
+    # Show infinitive first
+    if 'infinitive' in forms:
+        lines.append(f"*Infinitive:* {_escape_telegram_markdown(forms['infinitive'])}\n")
     
-    for form_type, form_value in forms.items():
-        label = labels.get(form_type, form_type.replace('_', ' ').title())
-        
-        # Escape markdown characters in the form value
-        safe_value = _escape_telegram_markdown(form_value)
-        
-        lines.append(f"  • *{label}*: {safe_value}")
+    # Group present tense forms
+    present_forms = [(k, v) for k, v in forms.items() if k.startswith('present_')]
+    if present_forms:
+        lines.append("*Present Tense:*")
+        for key, value in sorted(present_forms):
+            person = key.replace('present_', '').replace('_', ' ').title()
+            lines.append(f"  • {person}: {_escape_telegram_markdown(value)}")
+        lines.append("")
+    
+    # Group past/preterite forms
+    past_forms = [(k, v) for k, v in forms.items() if k.startswith('past_') and k != 'past_participle']
+    preterite_forms = [(k, v) for k, v in forms.items() if k.startswith('preterite_')]
+    if past_forms or preterite_forms:
+        lines.append("*Past Tense:*")
+        for key, value in sorted(past_forms + preterite_forms):
+            person = key.replace('past_', '').replace('preterite_', '').replace('_', ' ').title()
+            lines.append(f"  • {person}: {_escape_telegram_markdown(value)}")
+        lines.append("")
+    
+    # Group imperfect forms
+    imperfect_forms = [(k, v) for k, v in forms.items() if k.startswith('imperfect_')]
+    if imperfect_forms:
+        lines.append("*Imperfect:*")
+        for key, value in sorted(imperfect_forms):
+            person = key.replace('imperfect_', '').replace('_', ' ').title()
+            lines.append(f"  • {person}: {_escape_telegram_markdown(value)}")
+        lines.append("")
+    
+    # Group future forms
+    future_forms = [(k, v) for k, v in forms.items() if k.startswith('future_')]
+    if future_forms:
+        lines.append("*Future:*")
+        for key, value in sorted(future_forms):
+            person = key.replace('future_', '').replace('_', ' ').title()
+            lines.append(f"  • {person}: {_escape_telegram_markdown(value)}")
+        lines.append("")
+    
+    # Passé simple
+    passe_simple_forms = [(k, v) for k, v in forms.items() if k.startswith('passe_simple_')]
+    if passe_simple_forms:
+        lines.append("*Passé Simple:*")
+        for key, value in passe_simple_forms:
+            person = key.replace('passe_simple_', '').replace('_', ' ').title()
+            lines.append(f"  • {person}: {_escape_telegram_markdown(value)}")
+        lines.append("")
+    
+    # Conditional
+    conditional_forms = [(k, v) for k, v in forms.items() if k.startswith('conditional_')]
+    if conditional_forms:
+        lines.append("*Conditional:*")
+        for key, value in conditional_forms:
+            person = key.replace('conditional_', '').replace('_', ' ').title()
+            lines.append(f"  • {person}: {_escape_telegram_markdown(value)}")
+        lines.append("")
+    
+    # Subjunctive
+    subjunctive_forms = [(k, v) for k, v in forms.items() if k.startswith('subjunctive_')]
+    if subjunctive_forms:
+        lines.append("*Subjunctive:*")
+        for key, value in subjunctive_forms:
+            person = key.replace('subjunctive_', '').replace('_', ' ').title()
+            lines.append(f"  • {person}: {_escape_telegram_markdown(value)}")
+        lines.append("")
+    
+    # Participles and gerunds
+    special_forms = []
+    if 'present_participle' in forms:
+        special_forms.append(f"*Present Participle:* {_escape_telegram_markdown(forms['present_participle'])}")
+    if 'past_participle' in forms:
+        special_forms.append(f"*Past Participle:* {_escape_telegram_markdown(forms['past_participle'])}")
+    if 'gerund' in forms:
+        special_forms.append(f"*Gerund:* {_escape_telegram_markdown(forms['gerund'])}")
+    
+    if special_forms:
+        lines.append('\n'.join(special_forms))
+    
+    # Noun plurals
+    if 'plural' in forms:
+        lines.append(f"\n*Plural:* {_escape_telegram_markdown(forms['plural'])}")
+    
+    # Adjective forms
+    if 'comparative' in forms:
+        lines.append(f"\n*Comparative:* {_escape_telegram_markdown(forms['comparative'])}")
+    if 'superlative' in forms:
+        lines.append(f"*Superlative:* {_escape_telegram_markdown(forms['superlative'])}")
     
     return '\n'.join(lines)
 

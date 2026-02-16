@@ -28,6 +28,28 @@ WIKTIONARY_DOMAINS = {
     "zh-TW": "https://zh.wiktionary.org/w/api.php",
 }
 
+# POS section headings per Wiktionary language (en = English Wiktionary headings; fr/es/etc = local headings)
+POS_HEADINGS_BY_LANG = {
+    "en": {"Noun", "Verb", "Adjective", "Adverb", "Pronoun", "Preposition", "Conjunction", "Interjection", "Determiner", "Article", "Numeral", "Proper noun"},
+    "fr": {"Nom", "Verbe", "Adjectif", "Adverbe", "Pronom", "Préposition", "Conjonction", "Interjection", "Déterminant", "Article", "Numéral", "Nom propre", "Noun", "Verb", "Adjective"},
+    "es": {"Sustantivo", "Verbo", "Adjetivo", "Adverbio", "Pronombre", "Preposición", "Conjunción", "Interjección", "Determinante", "Artículo", "Numeral", "Nombre propio", "Noun", "Verb", "Adjective"},
+    "de": {"Substantiv", "Verb", "Adjektiv", "Adverb", "Pronomen", "Präposition", "Konjunktion", "Interjektion", "Determiner", "Artikel", "Numerale", "Eigenname", "Noun", "Adjective"},
+    "it": {"Sostantivo", "Verbo", "Aggettivo", "Avverbio", "Pronome", "Preposizione", "Congiunzione", "Interiezione", "Articolo", "Numeral", "Nome proprio", "Noun", "Verb", "Adjective"},
+    "pt": {"Substantivo", "Verbo", "Adjetivo", "Advérbio", "Pronome", "Preposição", "Conjunção", "Interjeição", "Artigo", "Numeral", "Nome próprio", "Noun", "Verb", "Adjective"},
+    "ru": {"Существительное", "Глагол", "Прилагательное", "Наречие", "Местоимение", "Предлог", "Союз", "Междометие", "Числительное", "Noun", "Verb", "Adjective"},
+    "pl": {"Rzeczownik", "Czasownik", "Przymiotnik", "Przysłówek", "Zaimek", "Przyimek", "Spójnik", "Wykrzyknik", "Noun", "Verb", "Adjective"},
+    "ja": {"名詞", "動詞", "形容詞", "副詞", "代名詞", "Noun", "Verb", "Adjective"},
+    "zh-CN": {"名词", "动词", "形容词", "副词", "代词", "Noun", "Verb", "Adjective"},
+    "zh-TW": {"名詞", "動詞", "形容詞", "副詞", "代詞", "Noun", "Verb", "Adjective"},
+    "ko": {"명사", "동사", "형용사", "부사", "대명사", "Noun", "Verb", "Adjective"},
+    "nl": {"Zelfstandig naamwoord", "Werkwoord", "Bijvoeglijk naamwoord", "Bijwoord", "Voornaamwoord", "Noun", "Verb", "Adjective"},
+    "tr": {"Ad", "Eylem", "Sıfat", "Belirteç", "Zamir", "Noun", "Verb", "Adjective"},
+    "ar": {"اسم", "فعل", "صفة", "حال", "ضمير", "Noun", "Verb", "Adjective"},
+    "hi": {"संज्ञा", "क्रिया", "विशेषण", "Noun", "Verb", "Adjective"},
+    "hu": {"Főnév", "Igék", "Melléknév", "Határozószó", "Noun", "Verb", "Adjective"},
+    "cs": {"Podstatné jméno", "Sloveso", "Přídavné jméno", "Příslovce", "Noun", "Verb", "Adjective"},
+}
+
 HEADERS = {
     "User-Agent": "DictionaryBot/1.0 (Educational Project; Contact: user@example.com)"
 }
@@ -84,34 +106,43 @@ def create_word_forms_keyboard(word: str, entries: list, language_code: str = "e
     return InlineKeyboardMarkup(buttons)
 
 
-def fetch_wikitext(word: str, language_code: str = "en") -> str | None:
+def fetch_wikitext(word: str, language_code: str = "en", try_english_first: bool = True) -> tuple[str | None, str]:
     """
     Fetch raw Wiktionary wikitext for a given word using MediaWiki API.
-    Tries to fetch from the language-specific Wiktionary first, then falls back to English Wiktionary.
+
+    Prefer en.wiktionary.org first (best coverage; has e.g. "French" section with English POS headings).
+    Then try language-specific Wiktionary if needed.
 
     Args:
         word: The word to look up
         language_code: Language code (e.g., "en", "fr", "es")
-    
+        try_english_first: If True, try en.wiktionary.org first for reliable parsing.
+
     Returns:
-        Raw wikitext string, or None if page does not exist.
+        Tuple of (wikitext or None, source_lang_code e.g. "en" or "fr" for POS heading lookup).
     """
-    # Try language-specific Wiktionary first (if available)
+    # Prefer English Wiktionary first: best coverage and consistent "== Language ==" and "=== Noun ===" structure
+    if try_english_first:
+        wikitext = _fetch_from_api(word, WIKTIONARY_API_EN, "en")
+        if wikitext:
+            print(f"DEBUG: Fetched from en.wiktionary.org for '{word}'")
+            return (wikitext, "en")
+        print(f"DEBUG: Word not found on en.wiktionary.org, trying language-specific")
+
+    # Then try language-specific Wiktionary
     if language_code in WIKTIONARY_DOMAINS and language_code != "en":
         api_url = WIKTIONARY_DOMAINS[language_code]
         wikitext = _fetch_from_api(word, api_url, language_code)
         if wikitext:
             print(f"DEBUG: Fetched from {language_code}.wiktionary.org")
-            return wikitext
-        print(f"DEBUG: Word not found on {language_code}.wiktionary.org, trying en.wiktionary.org")
-    
-    # Fall back to English Wiktionary
-    wikitext = _fetch_from_api(word, WIKTIONARY_API_EN, "en")
-    if wikitext:
-        print(f"DEBUG: Fetched from en.wiktionary.org")
-        return wikitext
-    
-    return None
+            return (wikitext, language_code)
+        print(f"DEBUG: Word not found on {language_code}.wiktionary.org")
+    elif not try_english_first:
+        wikitext = _fetch_from_api(word, WIKTIONARY_API_EN, "en")
+        if wikitext:
+            return (wikitext, "en")
+
+    return (None, language_code)
 
 
 def _fetch_from_api(word: str, api_url: str, lang_code: str) -> str | None:
@@ -145,7 +176,7 @@ def _fetch_from_api(word: str, api_url: str, lang_code: str) -> str | None:
         return None
 
 
-def extract_pronunciation(wikitext: str, language: str = "English") -> str | None:
+def extract_pronunciation(wikitext: str, language: str = "English", language_code: str = "en") -> str | None:
     """
     Extract the first/best IPA pronunciation from the wikitext.
     
@@ -162,25 +193,24 @@ def extract_pronunciation(wikitext: str, language: str = "English") -> str | Non
     language_section = lang_sections[0]
     section_text = str(language_section)
     
-    # Look for Pronunciation section
-    if "===Pronunciation===" not in section_text:
+    # Look for Pronunciation section (English and French/local variants)
+    pron_markers = ["===Pronunciation===", "===Prononciation===", "===Pronunciación===", "===Aussprache==="]
+    pron_section = None
+    for marker in pron_markers:
+        if marker in section_text:
+            parts = section_text.split(marker, 1)
+            if len(parts) >= 2:
+                pron_section = parts[1].split("===")[0]
+                break
+    if not pron_section:
         return None
     
-    # Extract the pronunciation section
-    parts = section_text.split("===Pronunciation===", 1)
-    if len(parts) < 2:
-        return None
-    
-    pron_section = parts[1].split("===")[0]  # Take until next section
-    
-    # Find first IPA entry - look for {{IPA|en|/.../ pattern
-    ipa_match = re.search(r'\{\{IPA\|en\|([^}|]+)', pron_section)
+    # Find first IPA entry - {{IPA|en|/.../}} or {{IPA|fr|...}} etc.
+    ipa_match = re.search(r'\{\{IPA\|[^|]+\|([^}|]+)', pron_section)
     if ipa_match:
         ipa = ipa_match.group(1).strip()
-        # Clean up the IPA notation
         ipa = ipa.replace('/', '').strip()
         return f"/{ipa}/"
-    
     return None
 
 
@@ -276,17 +306,19 @@ def clean_etymology_text(text: str) -> str:
 def extract_definitions(
     wikitext: str,
     language: str = "English",
+    language_code: str = "en",
     max_defs_per_pos: int = 5,
 ):
     """
     Parse raw wikitext and extract definitions for a given language.
     Looks for the language section bounded by ==Language==
-    
+
     Args:
         wikitext: Raw wikitext from Wiktionary
         language: Language to extract (e.g., "English", "Spanish", "French")
+        language_code: Language code for POS headings (en, fr, es, ...)
         max_defs_per_pos: Maximum definitions per part of speech
-    
+
     Returns:
         List of dicts:
         [
@@ -309,27 +341,22 @@ def extract_definitions(
     # Take everything after the language heading
     after_language = parts[1]
     
-    # Find the end of this language section (next == heading of same level)
-    # Stop at the next ==SomeOtherLanguage==
-    next_language_match = re.search(r'\n==\w', after_language)
+    # Find the end of this language section (next level-2 heading: == Title ==)
+    next_language_match = re.search(r'\n==\s*[^=\n]+==', after_language)
     if next_language_match:
         language_section = after_language[:next_language_match.start()]
     else:
         language_section = after_language
-    
+
     print(f"DEBUG: Found '{language}' section ({len(language_section)} chars)")
 
     entries = []
 
-    # Define allowed POS headings (level 3: ===POS===)
-    allowed_pos = {
-        "Noun", "Verb", "Adjective", "Adverb", "Pronoun",
-        "Preposition", "Conjunction", "Interjection",
-        "Determiner", "Article", "Numeral", "Proper noun"
-    }
-
-    # Find all POS headings (===POS===)
-    pos_pattern = r'===(' + '|'.join(allowed_pos) + r')==='
+    # Allowed POS headings (level 3) - use language-specific set so fr.wiktionary "Nom"/"Verbe" etc. match
+    allowed_pos = POS_HEADINGS_BY_LANG.get(language_code, POS_HEADINGS_BY_LANG["en"])
+    # Escape any regex-special chars in POS names (e.g. parentheses in "Nom propre")
+    allowed_escaped = [re.escape(pos) for pos in allowed_pos]
+    pos_pattern = r'===(' + '|'.join(allowed_escaped) + r')==='
     pos_matches = list(re.finditer(pos_pattern, language_section))
     
     print(f"DEBUG: Found {len(pos_matches)} POS headings in {language} section")
@@ -457,20 +484,24 @@ def fetch_definitions(word: str, language: str = "English", language_code: str =
     """
     empty = {"word": word, "language": language, "pronunciation": None, "etymology": None, "entries": []}
 
-    wikitext = fetch_wikitext(word, language_code=language_code)
+    wikitext, source_wiki = fetch_wikitext(word, language_code=language_code, try_english_first=True)
     if not wikitext:
         print("DEBUG fetch_definitions: No wikitext returned")
         return empty
 
-    pronunciation = extract_pronunciation(wikitext, language=language)
+    # POS headings: en.wiktionary.org uses English (Noun, Verb); fr.wiktionary uses French (Nom, Verbe)
+    pos_language_code = source_wiki
+
+    pronunciation = extract_pronunciation(wikitext, language=language, language_code=language_code)
     print(f"DEBUG fetch_definitions: pronunciation = {pronunciation}")
-    
+
     etymology = extract_etymology(wikitext, language=language)
     print(f"DEBUG fetch_definitions: etymology exists = {etymology is not None}")
-    
+
     entries = extract_definitions(
         wikitext,
-        language=language,  # Pass language through
+        language=language,
+        language_code=pos_language_code,
         max_defs_per_pos=max_defs_per_pos,
     )
     print(f"DEBUG fetch_definitions: entries count = {len(entries)}")
@@ -538,6 +569,16 @@ def format_for_telegram_with_buttons(word: str, language: str = "English", langu
     
     return (formatted_text, keyboard)
 
+
+def format_for_telegram(word: str, language: str = "English", language_code: str = "en", max_defs_per_pos: int = 5) -> str:
+    """
+    Format dictionary output for Telegram Markdown (text only, no keyboard).
+    Used by callbacks when returning to definition view.
+    """
+    text, _ = format_for_telegram_with_buttons(
+        word, language=language, language_code=language_code, max_defs_per_pos=max_defs_per_pos
+    )
+    return text
 
 
 def format_etymology_for_telegram(word: str) -> str:
