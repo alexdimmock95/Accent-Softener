@@ -14,7 +14,7 @@ appdirs==1.4.4
 asteroid-filterbanks==0.4.0
 attrs==25.4.0
 audioread==3.0.1
-av==12.3.0
+av
 babel==2.17.0
 backports.functools-lru-cache==2.0.0
 backports.zstd==1.3.0
@@ -37,7 +37,7 @@ confection==0.1.5
 contourpy==1.3.2
 coqpit==0.0.17
 csvw==3.7.0
-ctranslate2==4.4.0
+ctranslate2
 cycler==0.12.1
 cymem==2.0.13
 Cython==3.0.12
@@ -51,7 +51,7 @@ einops==0.8.1
 encodec==0.1.1
 fastapi==0.128.0
 fastdtw==0.3.4
-faster-whisper==1.0.3
+faster-whisper
 ffmpy==1.0.0
 filelock==3.20.1
 Flask==3.1.2
@@ -247,7 +247,7 @@ wasabi==1.1.3
 weasel==0.4.3
 websockets==11.0.3
 Werkzeug==3.1.5
-whisperx==3.3.0
+whisperx
 wikitextprocessor==0.4.96
 wiktextract==1.99.7
 wiktionaryparser==0.0.97
