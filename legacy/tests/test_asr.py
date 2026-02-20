@@ -1,3 +1,6 @@
+import pytest
+whisperx = pytest.importorskip("whisperx", reason="whisperx not available in CI")
+
 import torch
 
 import warnings
