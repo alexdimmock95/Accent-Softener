@@ -108,7 +108,7 @@ Levenshtein==0.27.3
 librosa==0.10.2.post1
 lightning==2.4.0
 lightning-utilities==0.15.2
-llvmlite==0.46.0
+llvmlite<0.45
 loguru==0.7.3
 lru-dict==1.4.1
 lupa==2.6
