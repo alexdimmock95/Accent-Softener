@@ -237,7 +237,7 @@ typeguard==4.4.4
 typer==0.20.1
 typer-slim==0.21.1
 typing-inspection==0.4.2
-typing_extensions==4.13.2
+typing_extensions>=4.14.1
 tzdata==2025.3
 tzlocal==5.3.1
 umap-learn==0.5.11
