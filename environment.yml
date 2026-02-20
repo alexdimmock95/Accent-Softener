@@ -15,8 +15,8 @@ dependencies:
       - av==15.1.0
       - gradio==4.15.0
       - gradio-client==0.8.1
-      - torch==2.5.1
-      - torchaudio==2.5.1
+      - torch>=2.7.1
+      - torchaudio
       - transformers==4.38.2
       - pyannote-audio==3.4.0
       - speechbrain==1.0.3
