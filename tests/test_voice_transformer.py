@@ -7,7 +7,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from voice_transformer import VoiceTransformer
+from src.voice_transformer import VoiceTransformer
 
 # ---- Load test audio ----
 audio_path = "/Users/Alex/Documents/Coding/personal_project/accent_softener/audio_files/input/test_nonoise.wav"

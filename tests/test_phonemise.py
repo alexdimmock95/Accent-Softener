@@ -4,7 +4,7 @@ import os
 os.environ["PHONEMIZER_ESPEAK_PATH"] = "/opt/homebrew/bin/espeak"
 os.environ["PHONEMIZER_ESPEAK_DATA"] = "/opt/homebrew/Cellar/espeak-ng/1.52.0/share/espeak-ng-data"
 
-from phonemizer.backend import EspeakBackend
+from src.phonemizer.backend import EspeakBackend
 
 backend = EspeakBackend(
     language="en-us",

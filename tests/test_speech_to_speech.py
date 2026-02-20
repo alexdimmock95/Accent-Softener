@@ -9,7 +9,7 @@ from pathlib import Path
 src_path = Path(__file__).parent.parent / "src"
 sys.path.insert(0, str(src_path))
 
-from speech_to_speech import SpeechToSpeechTranslator
+from src.speech_to_speech import SpeechToSpeechTranslator
 
 def test_translation():
     """Test speech-to-speech translation to French"""

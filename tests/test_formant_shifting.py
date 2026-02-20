@@ -6,7 +6,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from voice_transformer import FormantShifter
+from src.voice_transformer import FormantShifter
 
 def main():
     # ---- Load test audio ----
