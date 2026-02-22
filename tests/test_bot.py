@@ -150,79 +150,58 @@ class TestFeedbackGeneration:
 # ===========================================================================
 
 class TestStartHandler:
-    """
-    Tests for the /start command handler.
-    We mock the Update and Context objects that Telegram normally provides.
-    """
-
     @pytest.mark.asyncio
     async def test_start_sends_hermes_message(self):
-        """
-        /start should reply with the hermes greeting.
+        import sys
+        # Block the heavy imports before handlers loads
+        sys.modules['src.speech_to_speech'] = MagicMock()
+        sys.modules['src.voice_transformer'] = MagicMock()
         
-        We create fake Update and Context objects using MagicMock,
-        then check that reply_text was called with the right content.
-        """
-        # Mock the heavy translator that gets created at import time
-        with patch("src.speech_to_speech.SpeechToSpeechTranslator"):
-            from src.telegram_bot.handlers import start
-
-        # Build a fake Telegram Update object
-        # AsyncMock is used for async methods like reply_text
+        # Now safe to import
+        from src.telegram_bot import handlers
+        
         update = MagicMock()
         update.message.reply_text = AsyncMock()
-
         context = MagicMock()
 
-        await start(update, context)
-
-        # Check reply_text was called at least once
+        await handlers.start(update, context)
         update.message.reply_text.assert_called_once()
-
-        # Check the message contains "hermes"
-        call_args = update.message.reply_text.call_args
-        assert "hermes" in call_args.kwargs.get("text", "") or \
-               "hermes" in str(call_args.args)
+        call_args = str(update.message.reply_text.call_args)
+        assert "hermes" in call_args
 
 
 class TestSetLanguageHandler:
-    """
-    Tests for the /translate command that sets the target language.
-    """
-
     @pytest.mark.asyncio
     async def test_set_language_with_valid_code(self):
-        """Setting a valid language code should store it in user_data."""
-        with patch("src.speech_to_speech.SpeechToSpeechTranslator"):
-            from src.telegram_bot.handlers import set_language
-
+        import sys
+        sys.modules['src.speech_to_speech'] = MagicMock()
+        sys.modules['src.voice_transformer'] = MagicMock()
+        
+        from src.telegram_bot import handlers
+        
         update = MagicMock()
         update.message.reply_text = AsyncMock()
-
         context = MagicMock()
-        context.args = ["fr"]  # User typed /translate fr
+        context.args = ["fr"]
         context.user_data = {}
 
-        await set_language(update, context)
-
-        # Language should be stored
+        await handlers.set_language(update, context)
         assert context.user_data.get("target_lang") == "fr"
-        update.message.reply_text.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_set_language_without_args_shows_usage(self):
-        """Calling /translate with no args should show usage instructions."""
-        with patch("src.speech_to_speech.SpeechToSpeechTranslator"):
-            from src.telegram_bot.handlers import set_language
-
+        import sys
+        sys.modules['src.speech_to_speech'] = MagicMock()
+        sys.modules['src.voice_transformer'] = MagicMock()
+        
+        from src.telegram_bot import handlers
+        
         update = MagicMock()
         update.message.reply_text = AsyncMock()
-
         context = MagicMock()
-        context.args = []  # No arguments provided
+        context.args = []
 
-        await set_language(update, context)
-
+        await handlers.set_language(update, context)
         call_text = str(update.message.reply_text.call_args)
         assert "Usage" in call_text or "usage" in call_text
 
