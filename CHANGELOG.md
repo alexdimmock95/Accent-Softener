@@ -304,5 +304,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [ ] CI/CD pipeline setup (GitHub Actions)
 - [ ] Add capability to press "pronunciation" or "syntax" for IPA, tongue position/shape info and word type, grammar info, respectively
 - [ ] Flesh out language capability (translation vs dictionary language sets)
-- [ ] Performance optimization based on latency metrics (consider smaller models for faster response)
 - [ ] Expand language support for pronunciation scoring and dictionary definitions

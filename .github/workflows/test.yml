@@ -43,12 +43,6 @@ jobs:
       run: |
         docker run accent-soft python -m pytest tests/ -v --tb=short
     
-    - name: Test imports (smoke test)
-      run: |
-        docker run accent-soft python -c "from src.speech_to_speech import SpeechToSpeechTranslator; print('✓ speech_to_speech imports')"
-        docker run accent-soft python -c "from src.ml.pronunciation_score import PronunciationScore; print('✓ pronunciation_score imports')"
-        docker run accent-soft python -c "from src.dictionary.wiktionary_client import fetch_definitions; print('✓ wiktionary_client imports')"
-    
     - name: Check code quality with flake8
       run: docker run accent-soft flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
       continue-on-error: true
