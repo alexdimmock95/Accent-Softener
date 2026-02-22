@@ -164,7 +164,7 @@ class TestStartHandler:
         then check that reply_text was called with the right content.
         """
         # Mock the heavy translator that gets created at import time
-        with patch("src.telegram_bot.handlers.SpeechToSpeechTranslator"):
+        with patch("src.speech_to_speech.SpeechToSpeechTranslator"):
             from src.telegram_bot.handlers import start
 
         # Build a fake Telegram Update object
@@ -193,7 +193,7 @@ class TestSetLanguageHandler:
     @pytest.mark.asyncio
     async def test_set_language_with_valid_code(self):
         """Setting a valid language code should store it in user_data."""
-        with patch("src.telegram_bot.handlers.SpeechToSpeechTranslator"):
+        with patch("src.speech_to_speech.SpeechToSpeechTranslator"):
             from src.telegram_bot.handlers import set_language
 
         update = MagicMock()
@@ -212,7 +212,7 @@ class TestSetLanguageHandler:
     @pytest.mark.asyncio
     async def test_set_language_without_args_shows_usage(self):
         """Calling /translate with no args should show usage instructions."""
-        with patch("src.telegram_bot.handlers.SpeechToSpeechTranslator"):
+        with patch("src.speech_to_speech.SpeechToSpeechTranslator"):
             from src.telegram_bot.handlers import set_language
 
         update = MagicMock()
