@@ -116,7 +116,8 @@ async def handle_voice_effects(update: Update, context: ContextTypes.DEFAULT_TYP
                 raise ValueError(f"Unknown preset: {preset}")
             
             # Save output
-            output_path = "voice_fx_output.wav"
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_out:
+                output_path = tmp_out.name
             sf.write(output_path, output_audio, sr)
             
             # Update status
@@ -294,12 +295,6 @@ async def handle_pronunciation_scoring(
             f"{emoji} *Pronunciation Score: {score}/100*\n\n"
             f"*Target word:* {word}\n\n"
             f"*What I heard:* {recognized}\n"
-            '''
-            f"*Breakdown:*\n"
-            f"• Acoustic similarity: {result['dtw_score']}/100\n"
-            f"• Speech recognition: {result['phoneme_score']}/100\n\n"
-            f"*Feedback:* {feedback}\n\n"
-            '''
         )
         
         # Add phoneme analysis if available
@@ -316,7 +311,7 @@ async def handle_pronunciation_scoring(
             if phoneme_feedback and phoneme_feedback != "All sounds pronounced correctly! 🎉":
                 response += f"{phoneme_feedback}\n"
 
-        response += "\nTry again or choose another option:"
+        response += "Try again or choose another option:"
 
         target_lang = context.user_data.get('target_lang', 'en')
         keyboard = dictionary_result_keyboard(word, language_code=target_lang)
@@ -452,9 +447,10 @@ async def handle_text_translation(update: Update, context: ContextTypes.DEFAULT_
         # --- Generate audio using Google TTS for target language ---
         from gtts import gTTS
         tts = gTTS(text=translated_text, lang=target_lang, slow=False)
-        output_path = "text_translation_output.wav"
-        with open(output_path, 'wb') as f:
-            tts.write_to_fp(f)
+
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_out:
+            output_path = tmp_out.name
+            tts.write_to_fp(tmp_out)
 
         # --- After audio is ready, remove "⏳ Generating audio..." but keep Latinisation
         if target_lang in NON_LATIN_LANGS and latin:

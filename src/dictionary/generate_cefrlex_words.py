@@ -1,3 +1,5 @@
+# generate_cefrlex_words.py
+
 """
 download_cefrlex_data.py
 
@@ -39,71 +41,50 @@ VALID_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"]
 CEFRLEX_SOURCES = {
     "fr": {
         "name": "French (FLELex)",
-        "url": "https://cental.uclouvain.be/cefrlex/flelex/download/FLELex-CRF.csv",
+        "url": "https://cental.uclouvain.be/cefrlex/static/resources/fr/FleLex_TT.csv",
+        "delimiter": "\t",
         "description": "French as a Foreign Language - 17,800+ entries from textbooks",
         "columns": {
-            "word": "Lemma",
-            "pos": "POS",
-            "A1": "A1",
-            "A2": "A2",
-            "B1": "B1",
-            "B2": "B2",
-            "C1": "C1",
-            "C2": "C2",
+            "word": "word",
+            "A1": "freq_A1",
+            "A2": "freq_A2",
+            "B1": "freq_B1",
+            "B2": "freq_B2",
+            "C1": "freq_C1",
+            "C2": "freq_C2",
         },
     },
     "nl": {
         "name": "Dutch (NT2Lex)",
-        "url": "https://cental.uclouvain.be/cefrlex/nt2lex/download/NT2Lex.csv",
+        "url": "https://cental.uclouvain.be/cefrlex/static/resources/nl/NT2Lex-CGN+ODWN-v01.tsv",
+        "delimiter": "\t",
         "description": "Dutch as a Foreign Language (NT2) - 17,700+ entries",
         "columns": {
-            "word": "Lemma",
-            "pos": "POS",
-            "A1": "A1",
-            "A2": "A2",
-            "B1": "B1",
-            "B2": "B2",
-            "C1": "C1",
-            "C2": "C2",
-        },
-    },
-    "sv": {
-        "name": "Swedish (SVALex)",
-        "url": "https://spraakbanken.gu.se/sites/spraakbanken.gu.se/files/SVALex_freq.csv",
-        "description": "Swedish as a Second Language - 15,000+ entries",
-        "columns": {
-            "word": "lemma",
-            "pos": "pos",
-            "A1": "A1.per.mill",
-            "A2": "A2.per.mill",
-            "B1": "B1.per.mill",
-            "B2": "B2.per.mill",
-            "C1": "C1.per.mill",
-            # Note: SVALex doesn't have C2
+            "word": "word",
+            "A1": "F@A1",
+            "A2": "F@A2",
+            "B1": "F@B1",
+            "B2": "F@B2",
+            "C1": "F@C1",
+            # No C2 in this dataset
         },
     },
     "es": {
         "name": "Spanish (ELELex)",
-        "url": "https://cental.uclouvain.be/cefrlex/elelex/download/ELELex.csv",
+        "url": "https://cental.uclouvain.be/cefrlex/static/resources/es/ELELex.tsv",
+        "delimiter": "\t",
         "description": "Spanish as a Foreign Language - 13,000+ entries",
         "columns": {
-            "word": "Lemma",
-            "pos": "POS",
-            "A1": "A1",
-            "A2": "A2",
-            "B1": "B1",
-            "B2": "B2",
-            "C1": "C1",
-            "C2": "C2",
+            "word": "word",
+            "A1": "level_freq@a1",
+            "A2": "level_freq@a2",
+            "B1": "level_freq@b1",
+            "B2": "level_freq@b2",
+            "C1": "level_freq@c1",
+            # No C2 in this dataset
         },
     },
 }
-
-# NOTE: German (Profile Deutsch) exists but is not in CEFRLex.
-# It's published by Langenscheidt and available at:
-# https://www.goethe.de/en/spr/ueb/prf.html
-# You'd need to extract from the PDF or purchase the digital version.
-
 
 def download_csv(url: str) -> str:
     """Download a CSV file and return its content as a string."""
@@ -178,8 +159,9 @@ def process_cefrlex_file(lang_code: str, source: dict) -> dict:
         print(f"  Skipping {lang_code}")
         return {}
     
-    # Parse CSV
-    reader = csv.DictReader(io.StringIO(content))
+    # Parse CSV — some files are comma-separated, others are tab-separated
+    delimiter = source.get("delimiter", ",")
+    reader = csv.DictReader(io.StringIO(content), delimiter = delimiter)
     columns = source["columns"]
     
     lexicon = {}

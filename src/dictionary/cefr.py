@@ -64,11 +64,9 @@ LANGUAGE_CONFIG = {
     "fr": {
         "name": "French",
         "coverage": "✅",
-        "lexicon_source": (
-            "DELF/DALF official vocabulary: https://www.ciep.fr/en/delf-dalf\n"
-            "Wiktionary-based French CEFR list: https://github.com/s-m-e/french-cefr-wordlist"
-        ),
-        "embedding_model": "fasttext-wiki-news-subwords-300",  # covers French too
+        "lexicon_source": "CEFRLex FLELex project",
+        "embedding_model": None,  # not a gensim model
+        "embedding_model_path": os.path.expanduser("~/french_vectors.bin"),
     },
     "es": {
         "name": "Spanish",
@@ -215,6 +213,9 @@ class SmartDifficultyClassifier:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         filepath = os.path.join(script_dir, "cefr_data", f"{self.language}.txt")
 
+        print(f"Looking for lexicon at: {filepath}")        # ← add this
+        print(f"File exists: {os.path.exists(filepath)}")   # ← and this
+
         if os.path.exists(filepath):
             with open(filepath, encoding="utf-8") as f:
                 for line_number, line in enumerate(f, start=1):
@@ -304,6 +305,19 @@ class SmartDifficultyClassifier:
             print(f"⚠️  Embeddings disabled for {self.config['name']} — unknown words will be 'UNKNOWN'")
             return None
             
+        # If a local file path is specified, load that instead of a gensim model
+        local_path = self.config.get("embedding_model_path")
+        if local_path:
+            try:
+                from gensim.models.fasttext import load_facebook_vectors
+                print(f"Loading local embeddings for {self.config['name']} (this takes ~30s)...")
+                embeddings = load_facebook_vectors(local_path)
+                print("Embeddings ready!")
+                return embeddings
+            except Exception as e:
+                print(f"Warning: Could not load local embeddings: {e}")
+                return None
+
         try:
             import gensim.downloader as api
             model_name = self.config["embedding_model"]

@@ -16,6 +16,10 @@ The bot is the main interface. It provides:
 
 Under the hood it uses: **speech_to_speech** (WhisperX, Google Translate, XTTS with latency metrics), **voice_transformer** (speed/age/gender presets), **wiktionary_client** (mwparserfromhell, bilingual lookups, Telegram-safe formatting), **learning** (SQLite, aggregations), **ml/pronunciation_score** (multi-language Wav2Vec2 models, language-specific IPA extraction, pair-based phoneme correction tips).
 
+## Demo
+
+[![Watch the demo](https://img.youtube.com/vi/WjUgx56BxkU/0.jpg)](https://www.youtube.com/watch?v=WjUgx56BxkU)
+
 ## Language Support
 
 Language support varies by feature depending on the underlying services and models used.

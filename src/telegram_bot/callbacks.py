@@ -322,12 +322,7 @@ async def handle_practice_mode(update: Update, context: ContextTypes.DEFAULT_TYP
     await safe_message_update(
         query,
         f"🎤 *Practice Mode: '{word}'*\n\n"
-        f"Record yourself saying '*{word}*' and send me the voice message.\n\n"
-        f"I'll analyze your pronunciation using:\n"
-        f"• Audio feature analysis (MFCCs)\n"
-        f"• Speech recognition (Wav2Vec2)\n"
-        f"• Dynamic Time Warping\n\n"
-        f"Ready? Press the microphone button 🎤 and say the word!"
+        f"Record yourself saying '*{word}*' in a voice message.\n\n"
     )
 
 
